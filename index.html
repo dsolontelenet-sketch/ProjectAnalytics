@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ProjectOps // God Mode</title>
+<title>Project Analytics</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -79,10 +79,11 @@
   .brand{display:flex; align-items:center; gap:10px; padding:6px 8px 22px 8px;}
   .brand__mark{
     width:32px; height:32px; border-radius:9px;
-    background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    background:var(--accent);
     display:flex; align-items:center; justify-content:center;
     box-shadow:0 6px 18px -4px rgba(111,107,255,.55);
     flex-shrink:0;
+    font-family:var(--font-mono); font-weight:800; font-size:12.5px; color:#fff; letter-spacing:-.5px;
   }
   .brand__mark svg{width:18px; height:18px; stroke:#fff;}
   .brand__text{display:flex; flex-direction:column; line-height:1.15;}
@@ -354,7 +355,7 @@
   .month-col__bar{width:100%; max-width:26px; background:linear-gradient(180deg, var(--accent-2), var(--accent)); border-radius:5px 5px 2px 2px; min-height:3px; transition:height .5s cubic-bezier(.2,.9,.3,1);}
   .month-col__label{font-size:10px; font-family:var(--font-mono); color:var(--text-tertiary);}
 
-  /* ---------- TYPE BREAKDOWN (grouped by actual project name) ---------- */
+  /* ---------- TYPE BREAKDOWN (grouped by actual entry type) ---------- */
   .type-bar-row{margin-bottom:20px;}
   .type-bar-row:last-child{margin-bottom:0;}
   .type-bar-row__top{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:9px;}
@@ -424,12 +425,10 @@
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="brand">
-      <div class="brand__mark">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-      </div>
+      <div class="brand__mark">PA</div>
       <div class="brand__text">
-        <b>ProjectOps</b>
-        <span>GOD MODE</span>
+        <b>Project Analytics</b>
+        <span>WORKSPACE</span>
       </div>
     </div>
 
@@ -545,6 +544,11 @@ const state = {
   itemsLoaded: false,
   itemsUnsub: null,
   analyticsFilter: 'all',
+  // Aggregated entries across ALL projects (keyed by projectId), kept live via
+  // one onSnapshot listener per project. This is what Analytics AND Reports read
+  // from — entries (tickets), not projects, are the unit being counted/listed.
+  allItems: {},
+  allItemsUnsubs: {},
 };
 
 const NAV = [
@@ -563,7 +567,7 @@ const STATUS_META = {
 
 const PROJECT_TYPES = ['Dispute', 'Partner Portal', 'Inquiry'];
 
-// Visual identity for the known project "types" (used in cards + analytics).
+// Visual identity for the known entry "types" (used in cards + analytics).
 // Colors are literal hex (not CSS vars) so they can also be reused when drawing PDFs.
 const TYPE_META = {
   'Dispute':        { icon:'zap',     color:'#f5556c', bg:'rgba(245,85,108,.14)' },
@@ -571,7 +575,7 @@ const TYPE_META = {
   'Inquiry':        { icon:'message', color:'#6f6bff', bg:'rgba(111,107,255,.14)' },
 };
 
-// Any custom / free-typed project name gets its own stable color from this palette
+// Any custom / free-typed name gets its own stable color from this palette
 // (based on a hash of the name) instead of being lumped into a generic "Other" bucket.
 const EXTRA_PALETTE = [
   { color:'#a78bfa', bg:'rgba(167,139,250,.14)' },
@@ -593,10 +597,10 @@ function metaForCustomName(name){
 function typeMetaFor(name){ return TYPE_META[name] || metaForCustomName(name); }
 
 const PRIORITY_META = {
-  low:      { label:'Low',      color:'var(--text-tertiary)', bg:'var(--surface-2)' },
-  medium:   { label:'Medium',   color:'var(--accent-2)',      bg:'rgba(34,211,238,.13)' },
-  high:     { label:'High',     color:'var(--warning)',       bg:'rgba(245,166,35,.14)' },
-  critical: { label:'Critical', color:'var(--danger)',        bg:'rgba(245,85,108,.14)' },
+  low:      { label:'1',      color:'var(--text-tertiary)', bg:'var(--surface-2)' },
+  medium:   { label:'2',   color:'var(--accent-2)',      bg:'rgba(34,211,238,.13)' },
+  high:     { label:'3',     color:'var(--warning)',       bg:'rgba(245,166,35,.14)' },
+  critical: { label:'4', color:'var(--danger)',        bg:'rgba(245,85,108,.14)' },
 };
 
 /* ---------------- THEME ---------------- */
@@ -724,6 +728,7 @@ async function deleteProjectDoc(id){
 async function createItem(projectId, data){
   await addDoc(collection(db,'projects', projectId, 'items'), {
     title: data.title,
+    type: data.type || '',
     date: data.date,
     priority: data.priority,
     notes: data.notes || '',
@@ -732,6 +737,31 @@ async function createItem(projectId, data){
 }
 async function updateItem(projectId, itemId, data){
   await updateDoc(doc(db,'projects', projectId, 'items', itemId), data);
+}
+
+/* ---------------- CROSS-PROJECT ENTRY SYNC (for Analytics + Reports) ---------------- */
+// Keeps a live onSnapshot listener per project's "items" subcollection so Analytics
+// and Reports can aggregate/list entries by type across the ENTIRE workspace, not
+// just one project.
+function syncAllItemsListeners(){
+  const currentIds = new Set(state.projects.map(p=>p.id));
+  Object.keys(state.allItemsUnsubs).forEach(pid=>{
+    if(!currentIds.has(pid)){
+      state.allItemsUnsubs[pid]();
+      delete state.allItemsUnsubs[pid];
+      delete state.allItems[pid];
+    }
+  });
+  state.projects.forEach(p=>{
+    if(state.allItemsUnsubs[p.id]) return;
+    const q = query(collection(db,'projects', p.id, 'items'));
+    state.allItemsUnsubs[p.id] = onSnapshot(q, (snap)=>{
+      state.allItems[p.id] = snap.docs.map(d=> ({ id:d.id, projectId:p.id, ...d.data() }));
+      if(state.route==='analytics' || state.route==='reports') render();
+    }, (err)=>{
+      console.error('Entry sync error for project', p.id, err);
+    });
+  });
 }
 async function deleteItem(projectId, itemId){
   await deleteDoc(doc(db,'projects', projectId, 'items', itemId));
@@ -846,7 +876,7 @@ function openConfirm({ title, message, confirmLabel, danger=true, onConfirm }){
 /* ---------------- ENTRY (ITEM) FORM MODAL ---------------- */
 function openItemForm(projectId, existing=null){
   const isEdit = !!existing;
-  const it = existing || { title:'', date: todayStr(), priority:'medium', notes:'' };
+  const it = existing || { title:'', type:'', date: todayStr(), priority:'medium', notes:'' };
   openModal(`
     <div class="modal">
       <div class="modal-head">
@@ -857,6 +887,14 @@ function openItemForm(projectId, existing=null){
         <div class="field">
           <label>Title <span class="req">*</span></label>
           <input type="text" id="i-title" placeholder="e.g. Dispute Priority 1" value="${esc(it.title)}" maxlength="120">
+        </div>
+        <div class="field">
+          <label>Type</label>
+          <input type="text" id="i-type" list="entry-type-options" value="${esc(it.type||'')}" placeholder="Pick a type, or type your own…" maxlength="60">
+          <datalist id="entry-type-options">
+            ${PROJECT_TYPES.map(t=> `<option value="${esc(t)}"></option>`).join('')}
+          </datalist>
+          <div class="field-hint">Pick Dispute / Partner Portal / Inquiry, or type a custom type. This is what drives the Analytics breakdown.</div>
         </div>
         <div class="field-row">
           <div class="field">
@@ -884,6 +922,7 @@ function openItemForm(projectId, existing=null){
 
   document.getElementById('i-submit').onclick = async ()=>{
     const title = document.getElementById('i-title').value.trim();
+    const type = document.getElementById('i-type').value.trim();
     const date = document.getElementById('i-date').value;
     const priority = document.getElementById('i-priority').value;
     const notes = document.getElementById('i-notes').value.trim();
@@ -895,10 +934,10 @@ function openItemForm(projectId, existing=null){
     btn.disabled = true; btn.textContent = 'Saving…';
     try{
       if(isEdit){
-        await updateItem(projectId, existing.id, { title, date, priority, notes });
+        await updateItem(projectId, existing.id, { title, type, date, priority, notes });
         toast('Entry updated.', 'success');
       } else {
-        await createItem(projectId, { title, date, priority, notes });
+        await createItem(projectId, { title, type, date, priority, notes });
         toast('Entry added.', 'success');
       }
       closeModal();
@@ -951,7 +990,8 @@ function bindCardActions(container){
     const id = btn.dataset.id;
     const p = state.projects.find(x=>x.id===id);
     if(!p) return;
-    btn.onclick = ()=>{
+    btn.onclick = (e)=>{
+      e.stopPropagation();
       const act = btn.dataset.act;
       if(act==='edit') openProjectForm(p);
       else if(act==='archive') openConfirm({
@@ -984,6 +1024,46 @@ function bindCardActions(container){
 
 /* ---------------- VIEWS ---------------- */
 function activeProjects(){ return state.projects.filter(p=>!p.archived); }
+
+/* Shared table renderer for a list of projects — used on Dashboard's "Recently created"
+   panel. Reuses the same data-open / data-act conventions as project cards so
+   bindCardActions() (already called after every render) wires it up for free. */
+function projectTableRow(p){
+  const meta = STATUS_META[p.status] || STATUS_META.active;
+  const tMeta = typeMetaFor(p.name);
+  return `
+  <tr>
+    <td class="name-cell" data-open="${p.id}" style="cursor:pointer;">
+      <span class="type-pill" style="color:${tMeta.color}; background:${tMeta.bg}; border-color:${tMeta.color}">${icon(tMeta.icon)} ${esc(p.name)}</span>
+    </td>
+    <td><span class="badge" style="background:${meta.bg}; color:${meta.color}">${meta.label}</span></td>
+    <td>${fmtDate(p.startDate)}</td>
+    <td>${p.endDate ? fmtDate(p.endDate) : '—'}</td>
+    <td>${fmtDate(p.createdAt)}</td>
+    <td class="desc-cell" title="${esc(p.description)}">${esc(p.description)}</td>
+    <td>
+      <div style="display:flex; align-items:center; gap:4px;">
+        <button class="icon-btn" title="Edit" data-act="edit" data-id="${p.id}">${icon('edit')}</button>
+        ${!p.archived ? `<button class="icon-btn" title="Archive" data-act="archive" data-id="${p.id}">${icon('archive')}</button>`
+                       : `<button class="icon-btn" title="Restore" data-act="restore" data-id="${p.id}">${icon('restore')}</button>`}
+        <button class="icon-btn danger" title="Delete" data-act="delete" data-id="${p.id}">${icon('trash')}</button>
+        ${(p.status!=='completed' && !p.archived) ? `<button class="btn btn-sm btn-ghost" data-act="end" data-id="${p.id}">${icon('flag')} End</button>` : ''}
+      </div>
+    </td>
+  </tr>`;
+}
+
+function projectsTable(list){
+  return `
+  <div class="table-wrap">
+    <table>
+      <thead><tr>
+        <th>Project</th><th>Status</th><th>Start</th><th>End</th><th>Created</th><th>Description</th><th>Actions</th>
+      </tr></thead>
+      <tbody>${list.map(projectTableRow).join('')}</tbody>
+    </table>
+  </div>`;
+}
 
 function renderDashboard(){
   const all = activeProjects();
@@ -1028,7 +1108,7 @@ function renderDashboard(){
     </div>
 
     <div class="panel-title">${icon('clock')} Recently created</div>
-    ${recent.length ? `<div class="project-grid">${recent.map(projectCard).join('')}</div>` :
+    ${recent.length ? projectsTable(recent) :
       emptyState('No projects yet', 'Spin up your first project to see it appear here.', true)}
   `;
 }
@@ -1086,22 +1166,41 @@ function emptyState(title, sub, showCta){
     </div>`;
 }
 
-function entryRow(p, it){
+// Uncategorized (blank) entry types get a neutral pill instead of a hashed color,
+// since an empty string isn't a real "type" the way a hashed custom name is.
+function entryTypeMeta(t){
+  const key = (t && t.trim()) ? t.trim() : '';
+  if(!key) return { icon:'file', color:'var(--text-tertiary)', bg:'var(--surface-2)' };
+  return typeMetaFor(key);
+}
+
+function entryTableRow(it){
   const meta = PRIORITY_META[it.priority] || PRIORITY_META.medium;
+  const tMeta = entryTypeMeta(it.type);
+  const typeLabel = (it.type && it.type.trim()) ? it.type.trim() : 'Uncategorized';
   return `
-  <div class="entry-row" style="--priority-color:${meta.color}">
-    <div class="entry-row__main">
-      <div class="entry-row__title-line">
-        <span class="entry-row__title">${esc(it.title)}</span>
-        <span class="badge" style="background:${meta.bg}; color:${meta.color}">${meta.label}</span>
+  <tr>
+    <td class="name-cell">${esc(it.title)}</td>
+    <td><span class="type-pill" style="color:${tMeta.color}; background:${tMeta.bg}; border-color:${tMeta.color}">${icon(tMeta.icon)} ${esc(typeLabel)}</span></td>
+    <td><span class="badge" style="background:${meta.bg}; color:${meta.color}">${meta.label}</span></td>
+    <td>${fmtDate(it.date)}</td>
+    <td class="desc-cell" title="${esc(it.notes)}">${it.notes ? esc(it.notes) : '—'}</td>
+    <td>
+      <div style="display:flex; align-items:center; gap:4px;">
+        <button class="icon-btn" title="Edit entry" data-item-act="edit" data-item-id="${it.id}">${icon('edit')}</button>
+        <button class="icon-btn danger" title="Delete entry" data-item-act="delete" data-item-id="${it.id}">${icon('trash')}</button>
       </div>
-      ${it.notes ? `<div class="entry-row__notes">${esc(it.notes)}</div>` : ''}
-    </div>
-    <div class="entry-row__date">${icon('calendar')} ${fmtDate(it.date)}</div>
-    <div class="entry-row__actions">
-      <button class="icon-btn" title="Edit entry" data-item-act="edit" data-item-id="${it.id}">${icon('edit')}</button>
-      <button class="icon-btn danger" title="Delete entry" data-item-act="delete" data-item-id="${it.id}">${icon('trash')}</button>
-    </div>
+    </td>
+  </tr>`;
+}
+
+function entriesTable(items){
+  return `
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Title</th><th>Type</th><th>Priority</th><th>Date</th><th>Notes</th><th>Actions</th></tr></thead>
+      <tbody>${items.map(entryTableRow).join('')}</tbody>
+    </table>
   </div>`;
 }
 
@@ -1153,8 +1252,7 @@ function renderProjectDetail(){
       <button class="btn btn-primary btn-sm" id="detail-new-entry">${icon('plus')} New Entry</button>
     </div>
 
-    ${items.length ? `<div class="entry-list">${items.map(it=> entryRow(p, it)).join('')}</div>` :
-      emptyStateEntries()}
+    ${items.length ? entriesTable(items) : emptyStateEntries()}
   `;
 }
 
@@ -1178,10 +1276,14 @@ function bindProjectDetailActions(root){
   const back = root.querySelector('#back-to-projects');
   if(back) back.onclick = ()=>{ leaveProjectDetail(); state.route='projects'; render(); };
 
-  const newEntryBtn = root.querySelector('#detail-new-entry, #empty-new-entry');
-  if(newEntryBtn && p) newEntryBtn.onclick = ()=> openItemForm(p.id);
-
   if(p){
+    // NOTE: both #detail-new-entry (header button) and #empty-new-entry (empty-state
+    // button) can be present in the DOM at the same time — querySelectorAll + forEach
+    // ensures BOTH get wired up, not just whichever one comes first in the markup.
+    root.querySelectorAll('#detail-new-entry, #empty-new-entry').forEach(btn=>{
+      btn.onclick = ()=> openItemForm(p.id);
+    });
+
     root.querySelectorAll('[data-detail-act]').forEach(btn=>{
       btn.onclick = ()=>{
         const act = btn.dataset.detailAct;
@@ -1231,8 +1333,10 @@ function bindProjectDetailActions(root){
   }
 }
 
-/* ---------------- ANALYTICS: TYPE BREAKDOWN (grouped by actual project name) ---------------- */
+/* ---------------- ANALYTICS: TYPE BREAKDOWN (grouped by actual ENTRY type) ---------------- */
 // Which projects feed the type-breakdown chart, based on the analytics filter tab.
+// (Only used to decide WHICH projects' entries count — the counting itself is by
+// entry.type, not by project name.)
 function filterProjectsForAnalytics(){
   let list = state.analyticsFilter==='archived' ? state.projects.filter(p=>p.archived) : activeProjects();
   if(state.analyticsFilter!=='all' && state.analyticsFilter!=='archived'){
@@ -1241,13 +1345,26 @@ function filterProjectsForAnalytics(){
   return list;
 }
 
-// Groups projects by their actual `name` value — no generic "Other" bucket.
+// Flattens every entry from the projects that pass the current analytics filter into
+// a single array — this is what gets counted for the ticket-type breakdown, and what
+// gets exported.
+function collectEntriesForAnalytics(){
+  const projectList = filterProjectsForAnalytics();
+  const entries = [];
+  projectList.forEach(p=>{
+    (state.allItems[p.id] || []).forEach(it=> entries.push(it));
+  });
+  return entries;
+}
+
+// Groups ENTRIES by their `type` field (e.g. "Dispute", "Partner Portal", a custom
+// type, or blank → "Uncategorized") — no longer grouped by the project's name.
 // Known types (Dispute / Partner Portal / Inquiry) are always shown first (even at 0),
-// then any custom names, ordered by count.
-function computeTypeBreakdown(list){
+// then any custom types, ordered by count, with "Uncategorized" last.
+function computeTypeBreakdown(entries){
   const counts = new Map();
-  list.forEach(p=>{
-    const key = p.name || 'Untitled';
+  entries.forEach(it=>{
+    const key = (it.type && it.type.trim()) ? it.type.trim() : 'Uncategorized';
     counts.set(key, (counts.get(key)||0) + 1);
   });
 
@@ -1256,11 +1373,19 @@ function computeTypeBreakdown(list){
     rows.push({ label:t, count: counts.get(t)||0, meta: TYPE_META[t] });
     counts.delete(t);
   });
+  const uncategorizedCount = counts.get('Uncategorized') || 0;
+  counts.delete('Uncategorized');
+
   const customRows = [...counts.entries()]
     .sort((a,b)=> b[1]-a[1])
     .map(([name,count])=> ({ label:name, count, meta: metaForCustomName(name) }));
 
-  return { rows: [...rows, ...customRows], total:list.length };
+  const allRows = [...rows, ...customRows];
+  if(uncategorizedCount > 0){
+    allRows.push({ label:'Uncategorized', count:uncategorizedCount, meta:{ icon:'file', color:'var(--text-tertiary)', bg:'var(--surface-2)' } });
+  }
+
+  return { rows: allRows, total: entries.length };
 }
 
 function exportTypeCSV(rows, total, filterLabel){
@@ -1270,7 +1395,7 @@ function exportTypeCSV(rows, total, filterLabel){
   const blob = new Blob([csv], { type:'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = `project-type-breakdown-${filterLabel}.csv`; a.click();
+  a.href = url; a.download = `ticket-type-breakdown-${filterLabel}.csv`; a.click();
   URL.revokeObjectURL(url);
   toast('Type breakdown exported (CSV).', 'success');
 }
@@ -1306,7 +1431,7 @@ function exportTypeBreakdownPDF(rows, total, filterLabel){
     if(y > 760){ docPdf.addPage(); y = 60; }
   });
 
-  docPdf.save(`project-type-breakdown-${filterLabel}.pdf`);
+  docPdf.save(`ticket-type-breakdown-${filterLabel}.pdf`);
   toast('Type breakdown exported (PDF).', 'success');
 }
 
@@ -1362,8 +1487,8 @@ function exportMonthsChartPDF(months){
 }
 
 function renderAnalytics(){
-  const filtered = filterProjectsForAnalytics();
-  const { rows, total } = computeTypeBreakdown(filtered);
+  const entries = collectEntriesForAnalytics();
+  const { rows, total } = computeTypeBreakdown(entries);
   const archivedCount = state.projects.filter(p=>p.archived).length;
   const filterTabs = [
     ['all','All'], ['active','Active'], ['onhold','On Hold'], ['completed','Completed'], ['archived','Archived']
@@ -1374,7 +1499,10 @@ function renderAnalytics(){
   return `
     <div class="view-header">
       <div>
-        <div class="view-title">Analytics</div>
+        <div class="view-title" style="display:flex; align-items:center; gap:10px;">
+          <span class="brand__mark" style="width:26px; height:26px; border-radius:7px; font-size:10px;">PA</span>
+          Project Analytics
+        </div>
         <div class="view-sub">Signal on how your portfolio of projects is trending.</div>
       </div>
     </div>
@@ -1401,14 +1529,14 @@ function renderAnalytics(){
             </div>
             <div class="type-bar-track"><div class="type-bar-fill" style="width:${Math.max(pct,0).toFixed(1)}%; background:${r.meta.color}"></div></div>
           </div>`;
-        }).join('') : `<div class="cmdk-empty" style="padding:30px 0;">No projects match this filter.</div>`}
+        }).join('') : `<div class="cmdk-empty" style="padding:30px 0;">No entries match this filter.</div>`}
       </div>
 
       <div class="panel">
         <div class="panel-title">${icon('bar')} Portfolio Snapshot</div>
         <div class="kv-row"><span>total_projects</span><span>${state.projects.length}</span></div>
         <div class="kv-row"><span>active_workspace</span><span>${activeProjects().length}</span></div>
-        <div class="kv-row"><span>completion_rate</span><span>${activeProjects().length ? Math.round(activeProjects().filter(p=>p.status==='completed').length/activeProjects().length*100) : 0}%</span></div>
+        <div class="kv-row"><span>total_entries</span><span>${Object.values(state.allItems).reduce((s,arr)=>s+arr.length,0)}</span></div>
         <div class="kv-row"><span>archived</span><span>${archivedCount}</span></div>
       </div>
     </div>
@@ -1430,38 +1558,55 @@ function renderAnalytics(){
   `;
 }
 
+/* ---------------- REPORTS: ALL ENTRIES ACROSS ALL PROJECTS ---------------- */
+// Flattens every entry from every project (regardless of status/archived) into one
+// list, each tagged with its parent project's name/status for display.
+function collectAllEntriesForReports(){
+  const entries = [];
+  state.projects.forEach(p=>{
+    (state.allItems[p.id] || []).forEach(it=>{
+      entries.push({ ...it, projectName: p.name, projectStatus: p.status, projectArchived: p.archived });
+    });
+  });
+  entries.sort((a,b)=> (a.date||'') < (b.date||'') ? 1 : -1);
+  return entries;
+}
+
+function reportEntryRow(it){
+  const pMeta = PRIORITY_META[it.priority] || PRIORITY_META.medium;
+  const tMeta = entryTypeMeta(it.type);
+  const typeLabel = (it.type && it.type.trim()) ? it.type.trim() : 'Uncategorized';
+  const sMeta = STATUS_META[it.projectStatus] || STATUS_META.active;
+  return `
+  <tr>
+    <td class="name-cell">${esc(it.projectName)}${it.projectArchived ? ' <span class="archived-flag" style="display:inline-flex; margin-left:0;">'+icon('archive')+' archived</span>' : ''}</td>
+    <td>${esc(it.title)}</td>
+    <td><span class="type-pill" style="color:${tMeta.color}; background:${tMeta.bg}; border-color:${tMeta.color}">${icon(tMeta.icon)} ${esc(typeLabel)}</span></td>
+    <td><span class="badge" style="background:${pMeta.bg}; color:${pMeta.color}">${pMeta.label}</span></td>
+    <td>${fmtDate(it.date)}</td>
+    <td class="desc-cell" title="${esc(it.notes||'')}">${it.notes ? esc(it.notes) : '—'}</td>
+  </tr>`;
+}
+
 function renderReports(){
-  const rows = [...state.projects].sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+  const entries = collectAllEntriesForReports();
   return `
     <div class="view-header">
       <div>
         <div class="view-title">Reports</div>
-        <div class="view-sub">Full ledger of every project, ready to export.</div>
+        <div class="view-sub">Full ledger of every entry inside every project, ready to export.</div>
       </div>
       <button class="btn btn-ghost" id="export-csv">${icon('download')} Export CSV</button>
     </div>
-    ${rows.length ? `
+    ${entries.length ? `
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>Name</th><th>Status</th><th>Start Date</th><th>End Date</th><th>Created</th><th>Archived</th><th>Description</th>
+          <th>Project</th><th>Title</th><th>Type</th><th>Priority</th><th>Date</th><th>Notes</th>
         </tr></thead>
-        <tbody>
-          ${rows.map(p=>{
-            const meta = STATUS_META[p.status]||STATUS_META.active;
-            return `<tr>
-              <td class="name-cell">${esc(p.name)}</td>
-              <td><span class="badge" style="background:${meta.bg}; color:${meta.color}">${meta.label}</span></td>
-              <td>${fmtDate(p.startDate)}</td>
-              <td>${p.endDate ? fmtDate(p.endDate) : '—'}</td>
-              <td>${fmtDate(p.createdAt)}</td>
-              <td>${p.archived ? 'Yes' : 'No'}</td>
-              <td class="desc-cell">${esc(p.description)}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
+        <tbody>${entries.map(reportEntryRow).join('')}</tbody>
       </table>
-    </div>` : emptyState('No data to report', 'Once you create projects, they will show up here.', true)}
+    </div>` : emptyState('No entries to report', 'Once you add entries inside your projects, they will show up here.', false)}
   `;
 }
 
@@ -1490,6 +1635,18 @@ function renderSettings(){
         <div class="kv-row"><span>session_uid</span><span>${state.uid ? state.uid.slice(0,10)+'…' : '—'}</span></div>
         <div class="kv-row"><span>sync_status</span><span>live</span></div>
       </div>
+
+      <div class="panel danger-zone">
+        <div class="panel-title" style="color:var(--danger)">${icon('alert')} Danger Zone</div>
+        <div class="setting-row" style="border:none; padding:0;">
+          <div class="setting-row__text">
+            <b>Delete all projects</b>
+            <span>Permanently remove every project in this workspace. Cannot be undone.</span>
+          </div>
+          <button class="btn btn-danger btn-sm" id="delete-all">${icon('trash')} Delete All</button>
+        </div>
+      </div>
+    </div>
   `;
 }
 
@@ -1535,8 +1692,12 @@ function updateTopbarNewButton(){
 }
 
 function bindViewActions(root){
-  const newBtn = root.querySelector('#dash-new, #proj-new, #empty-new');
-  if(newBtn) newBtn.onclick = ()=> openProjectForm();
+  // NOTE: #dash-new / #proj-new / #empty-new can appear together (e.g. an empty
+  // filtered list still shows the top "New Project" button AND the empty-state's own
+  // button) — querySelectorAll + forEach wires up every one of them, not just the first.
+  root.querySelectorAll('#dash-new, #proj-new, #empty-new').forEach(btn=>{
+    btn.onclick = ()=> openProjectForm();
+  });
 
   const searchInput = root.querySelector('#proj-search');
   if(searchInput){
@@ -1554,14 +1715,14 @@ function bindViewActions(root){
   });
   const exportTypeCsvBtn = root.querySelector('#export-type-csv');
   if(exportTypeCsvBtn) exportTypeCsvBtn.onclick = ()=>{
-    const filtered = filterProjectsForAnalytics();
-    const { rows, total } = computeTypeBreakdown(filtered);
+    const entries = collectEntriesForAnalytics();
+    const { rows, total } = computeTypeBreakdown(entries);
     exportTypeCSV(rows, total, state.analyticsFilter);
   };
   const exportTypePdfBtn = root.querySelector('#export-type-pdf');
   if(exportTypePdfBtn) exportTypePdfBtn.onclick = ()=>{
-    const filtered = filterProjectsForAnalytics();
-    const { rows, total } = computeTypeBreakdown(filtered);
+    const entries = collectEntriesForAnalytics();
+    const { rows, total } = computeTypeBreakdown(entries);
     exportTypeBreakdownPDF(rows, total, state.analyticsFilter);
   };
   const exportMonthsPdfBtn = root.querySelector('#export-months-pdf');
@@ -1583,15 +1744,21 @@ function bindViewActions(root){
 }
 
 function exportCSV(){
-  const headers = ['Name','Status','Start Date','End Date','Created Date','Archived','Description'];
-  const rows = state.projects.map(p=>[
-    p.name, (STATUS_META[p.status]||{}).label || p.status, p.startDate||'', p.endDate||'', fmtDate(p.createdAt), p.archived?'Yes':'No', p.description||''
+  const entries = collectAllEntriesForReports();
+  const headers = ['Project','Title','Type','Priority','Date','Notes'];
+  const rows = entries.map(it=>[
+    it.projectName,
+    it.title,
+    (it.type && it.type.trim()) ? it.type.trim() : 'Uncategorized',
+    (PRIORITY_META[it.priority]||{}).label || it.priority,
+    it.date || '',
+    it.notes || ''
   ]);
   const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type:'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = 'projects-report.csv'; a.click();
+  a.href = url; a.download = 'entries-report.csv'; a.click();
   URL.revokeObjectURL(url);
   toast('Report exported.', 'success');
 }
@@ -1679,6 +1846,7 @@ onAuthStateChanged(auth, (user)=>{
       state.projects = snap.docs.map(d=> ({ id:d.id, ...d.data() }));
       state.loaded = true;
       document.getElementById('conn-label').textContent = 'live';
+      syncAllItemsListeners();
       render();
     }, (err)=>{
       console.error(err);
