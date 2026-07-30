@@ -283,6 +283,27 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .field-search input{background:transparent; border:none; outline:none; font-size:13px; width:100%;}
   .field-search .icon{color:var(--text-tertiary);}
 
+  /* ---------- DATE RANGE FILTER (Analytics) ---------- */
+  .date-range-bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:18px;}
+  .date-range-field{display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:7px 12px;}
+  .date-range-field label{font-family:var(--font-mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-tertiary); white-space:nowrap;}
+  .date-range-field input[type=date]{background:transparent; border:none; outline:none; font-size:12.5px; color:var(--text-primary); font-family:var(--font-mono);}
+  .date-range-sep{color:var(--text-tertiary); font-family:var(--font-mono); font-size:12px;}
+
+  /* Tint the native calendar-picker icon violet (it renders black by default,
+     which is invisible on the dark theme) — applies to every date input in the app. */
+  input[type=date]::-webkit-calendar-picker-indicator{
+    filter: invert(48%) sepia(75%) saturate(3000%) hue-rotate(228deg) brightness(99%) contrast(101%);
+    cursor:pointer;
+    opacity:.9;
+    transition:opacity var(--transition);
+  }
+  input[type=date]::-webkit-calendar-picker-indicator:hover{ opacity:1; }
+  html[data-theme="light"] input[type=date]::-webkit-calendar-picker-indicator{
+    filter: invert(35%) sepia(90%) saturate(1500%) hue-rotate(228deg) brightness(95%) contrast(105%);
+  }
+  .date-range-active{font-family:var(--font-mono); font-size:11px; color:var(--accent-2); background:rgba(34,211,238,.1); border:1px solid rgba(34,211,238,.25); padding:5px 10px; border-radius:20px; display:flex; align-items:center; gap:6px;}
+
   .empty-state{display:flex; flex-direction:column; align-items:center; justify-content:center; padding:80px 20px; text-align:center; border:1px dashed var(--border); border-radius:var(--radius-lg); color:var(--text-tertiary);}
   .empty-state .icon{width:34px; height:34px; margin-bottom:14px; opacity:.5;}
   .empty-state h3{font-family:var(--font-mono); color:var(--text-secondary); font-size:15px; margin-bottom:6px;}
@@ -546,6 +567,9 @@ const state = {
   itemsLoaded: false,
   itemsUnsub: null,
   analyticsFilter: 'all',
+  // Date range filter for the Analytics view (applies to entry.date). Empty string = no bound.
+  analyticsStartDate: '',
+  analyticsEndDate: '',
   // Aggregated entries across ALL projects (keyed by projectId), kept live via
   // one onSnapshot listener per project. This is what Analytics AND Reports read
   // from — entries (tickets), not projects, are the unit being counted/listed.
@@ -1347,14 +1371,27 @@ function filterProjectsForAnalytics(){
   return list;
 }
 
+// True if an entry's date falls within the selected analytics date range
+// (state.analyticsStartDate / state.analyticsEndDate). Either bound may be empty,
+// meaning that side is unbounded. Entries with no date are excluded once any bound is set.
+function isWithinAnalyticsDateRange(it){
+  const { analyticsStartDate:start, analyticsEndDate:end } = state;
+  if(!start && !end) return true;
+  const d = it.date || '';
+  if(!d) return false;
+  if(start && d < start) return false;
+  if(end && d > end) return false;
+  return true;
+}
+
 // Flattens every entry from the projects that pass the current analytics filter into
 // a single array — this is what gets counted for the ticket-type breakdown, and what
-// gets exported.
+// gets exported. Also applies the start/end date range filter.
 function collectEntriesForAnalytics(){
   const projectList = filterProjectsForAnalytics();
   const entries = [];
   projectList.forEach(p=>{
-    (state.allItems[p.id] || []).forEach(it=> entries.push(it));
+    (state.allItems[p.id] || []).forEach(it=>{ if(isWithinAnalyticsDateRange(it)) entries.push(it); });
   });
   return entries;
 }
@@ -1390,6 +1427,15 @@ function computeTypeBreakdown(entries){
   return { rows: allRows, total: entries.length };
 }
 
+// Short label used in export filenames / PDF subheads to reflect the active date range.
+function dateRangeLabel(){
+  const { analyticsStartDate:start, analyticsEndDate:end } = state;
+  if(!start && !end) return 'all-dates';
+  if(start && end) return `${start}_to_${end}`;
+  if(start) return `from-${start}`;
+  return `through-${end}`;
+}
+
 function exportTypeCSV(rows, total, filterLabel){
   const headers = ['Type','Tickets','Percentage'];
   const data = rows.map(r=> [r.label, r.count, total ? ((r.count/total*100).toFixed(1)+'%') : '0%']);
@@ -1397,7 +1443,7 @@ function exportTypeCSV(rows, total, filterLabel){
   const blob = new Blob([csv], { type:'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = `ticket-type-breakdown-${filterLabel}.csv`; a.click();
+  a.href = url; a.download = `ticket-type-breakdown-${filterLabel}-${dateRangeLabel()}.csv`; a.click();
   URL.revokeObjectURL(url);
   toast('Type breakdown exported (CSV).', 'success');
 }
@@ -1410,7 +1456,10 @@ function exportTypeBreakdownPDF(rows, total, filterLabel){
   docPdf.setFont('helvetica','bold'); docPdf.setFontSize(16); docPdf.setTextColor(20,20,20);
   docPdf.text('Ticket Type Distribution', 40, 50);
   docPdf.setFont('helvetica','normal'); docPdf.setFontSize(10); docPdf.setTextColor(120,120,120);
-  docPdf.text(`Filter: ${filterLabel} • Total: ${total} • Generated ${new Date().toLocaleString()}`, 40, 68);
+  const rangeText = (state.analyticsStartDate || state.analyticsEndDate)
+    ? `Date range: ${state.analyticsStartDate || '…'} to ${state.analyticsEndDate || '…'}`
+    : 'Date range: all dates';
+  docPdf.text(`Filter: ${filterLabel} • ${rangeText} • Total: ${total} • Generated ${new Date().toLocaleString()}`, 40, 68);
 
   let y = 100;
   const barX = 170, barMaxWidth = 320, barHeight = 14;
@@ -1433,11 +1482,14 @@ function exportTypeBreakdownPDF(rows, total, filterLabel){
     if(y > 760){ docPdf.addPage(); y = 60; }
   });
 
-  docPdf.save(`ticket-type-breakdown-${filterLabel}.pdf`);
+  docPdf.save(`ticket-type-breakdown-${filterLabel}-${dateRangeLabel()}.pdf`);
   toast('Type breakdown exported (PDF).', 'success');
 }
 
-// Last 6 months of project-creation counts, shared by the render function and the PDF export.
+// Month-by-month entry counts for the chart. Normally this shows the last 6 calendar
+// months (by project creation date, as before). When an analytics date range is set,
+// it switches to counting ENTRIES (by entry.date) grouped by month across that range
+// instead, so the chart reflects the same filter as the breakdown above it.
 function getLast6MonthsData(){
   const months = [];
   const now = new Date();
@@ -1455,15 +1507,61 @@ function getLast6MonthsData(){
   return months;
 }
 
+// Builds one bucket per month between the selected start/end dates (inclusive),
+// counting entries (filtered by the active analytics project filter) whose date
+// falls in that month. Falls back to a sensible single-month span if only one
+// bound is given.
+function getRangeMonthsData(){
+  const { analyticsStartDate:start, analyticsEndDate:end } = state;
+  const startD = start ? new Date(start+'T00:00:00') : (end ? new Date(end+'T00:00:00') : new Date());
+  const endD = end ? new Date(end+'T00:00:00') : (start ? new Date(start+'T00:00:00') : new Date());
+
+  const months = [];
+  let cursor = new Date(startD.getFullYear(), startD.getMonth(), 1);
+  const last = new Date(endD.getFullYear(), endD.getMonth(), 1);
+  let guard = 0;
+  while(cursor <= last && guard < 60){
+    months.push({ key:`${cursor.getFullYear()}-${cursor.getMonth()}`, label:cursor.toLocaleDateString('en-US',{month:'short', year:'2-digit'}), count:0 });
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth()+1, 1);
+    guard++;
+  }
+  if(!months.length){
+    months.push({ key:`${startD.getFullYear()}-${startD.getMonth()}`, label:startD.toLocaleDateString('en-US',{month:'short', year:'2-digit'}), count:0 });
+  }
+
+  const entries = collectEntriesForAnalytics();
+  entries.forEach(it=>{
+    if(!it.date) return;
+    const d = new Date(it.date+'T00:00:00');
+    if(isNaN(d.getTime())) return;
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    const m = months.find(mo=>mo.key===key);
+    if(m) m.count++;
+  });
+  return months;
+}
+
+function isDateRangeActive(){
+  return !!(state.analyticsStartDate || state.analyticsEndDate);
+}
+
+function getMonthsChartData(){
+  return isDateRangeActive() ? getRangeMonthsData() : getLast6MonthsData();
+}
+
 function exportMonthsChartPDF(months){
   if(!window.jspdf){ toast('PDF library failed to load. Check your connection.', 'error'); return; }
   const { jsPDF } = window.jspdf;
   const docPdf = new jsPDF({ unit:'pt', format:'a4' });
 
+  const title = isDateRangeActive() ? 'Entries — Selected Date Range' : 'Projects Created — Last 6 Months';
   docPdf.setFont('helvetica','bold'); docPdf.setFontSize(16); docPdf.setTextColor(20,20,20);
-  docPdf.text('Projects Created — Last 6 Months', 40, 50);
+  docPdf.text(title, 40, 50);
   docPdf.setFont('helvetica','normal'); docPdf.setFontSize(10); docPdf.setTextColor(120,120,120);
-  docPdf.text(`Generated ${new Date().toLocaleString()}`, 40, 68);
+  const rangeText = isDateRangeActive()
+    ? `Date range: ${state.analyticsStartDate || '…'} to ${state.analyticsEndDate || '…'}`
+    : 'Last 6 calendar months';
+  docPdf.text(`${rangeText} • Generated ${new Date().toLocaleString()}`, 40, 68);
 
   const chartX = 60, baseline = 260, chartHeight = 160, colWidth = 60, gap = 30;
   const maxCount = Math.max(1, ...months.map(m=>m.count));
@@ -1484,8 +1582,8 @@ function exportMonthsChartPDF(months){
     docPdf.text(m.label, x+colWidth/2, baseline+18, { align:'center' });
   });
 
-  docPdf.save('projects-created-last-6-months.pdf');
-  toast('Monthly chart exported (PDF).', 'success');
+  docPdf.save(`entries-chart-${dateRangeLabel()}.pdf`);
+  toast('Chart exported (PDF).', 'success');
 }
 
 function renderAnalytics(){
@@ -1495,8 +1593,9 @@ function renderAnalytics(){
   const filterTabs = [
     ['all','All'], ['active','Active'], ['onhold','On Hold'], ['completed','Completed'], ['archived','Archived']
   ];
-  const months = getLast6MonthsData();
+  const months = getMonthsChartData();
   const maxCount = Math.max(1, ...months.map(m=>m.count));
+  const rangeActive = isDateRangeActive();
 
   return `
     <div class="view-header">
@@ -1507,6 +1606,22 @@ function renderAnalytics(){
         </div>
         <div class="view-sub">Signal on how your portfolio of projects is trending.</div>
       </div>
+    </div>
+
+    <div class="date-range-bar">
+      <div class="date-range-field">
+        <label>${icon('calendar')} Start</label>
+        <input type="date" id="analytics-date-start" value="${state.analyticsStartDate || ''}">
+      </div>
+      <span class="date-range-sep">→</span>
+      <div class="date-range-field">
+        <label>End</label>
+        <input type="date" id="analytics-date-end" value="${state.analyticsEndDate || ''}">
+      </div>
+      ${rangeActive ? `
+        <span class="date-range-active">${icon('zap')} Filtering ${state.analyticsStartDate || '…'} to ${state.analyticsEndDate || '…'}</span>
+        <button class="btn btn-ghost btn-sm" id="analytics-date-clear">${icon('x')} Clear</button>
+      ` : ''}
     </div>
 
     <div class="analytics-grid">
@@ -1531,21 +1646,21 @@ function renderAnalytics(){
             </div>
             <div class="type-bar-track"><div class="type-bar-fill" style="width:${Math.max(pct,0).toFixed(1)}%; background:${r.meta.color}"></div></div>
           </div>`;
-        }).join('') : `<div class="cmdk-empty" style="padding:30px 0;">No entries match this filter.</div>`}
+        }).join('') : `<div class="cmdk-empty" style="padding:30px 0;">No entries match this filter${rangeActive ? ' or date range' : ''}.</div>`}
       </div>
 
       <div class="panel">
         <div class="panel-title">${icon('bar')} Portfolio Snapshot</div>
         <div class="kv-row"><span>total_projects</span><span>${state.projects.length}</span></div>
         <div class="kv-row"><span>active_workspace</span><span>${activeProjects().length}</span></div>
-        <div class="kv-row"><span>total_entries</span><span>${Object.values(state.allItems).reduce((s,arr)=>s+arr.length,0)}</span></div>
+        <div class="kv-row"><span>${rangeActive ? 'entries_in_range' : 'total_entries'}</span><span>${rangeActive ? total : Object.values(state.allItems).reduce((s,arr)=>s+arr.length,0)}</span></div>
         <div class="kv-row"><span>archived</span><span>${archivedCount}</span></div>
       </div>
     </div>
 
     <div class="panel">
       <div class="panel-title-row">
-        <div class="panel-title">${icon('clock')} Projects Created — Last 6 Months</div>
+        <div class="panel-title">${icon('clock')} ${rangeActive ? 'Entries — Selected Date Range' : 'Projects Created — Last 6 Months'}</div>
         <button class="btn btn-ghost btn-sm" id="export-months-pdf">${icon('file2')} Export PDF</button>
       </div>
       <div class="month-chart">
@@ -1715,6 +1830,17 @@ function bindViewActions(root){
   root.querySelectorAll('[data-analytics-filter]').forEach(t=>{
     t.onclick = ()=>{ state.analyticsFilter = t.dataset.analyticsFilter; render(); };
   });
+
+  // Date range inputs — updating either bound re-renders the whole Analytics view
+  // (breakdown, snapshot counts, and the months/entries chart all read from the
+  // same state.analyticsStartDate/EndDate).
+  const dateStartInput = root.querySelector('#analytics-date-start');
+  if(dateStartInput) dateStartInput.onchange = ()=>{ state.analyticsStartDate = dateStartInput.value; render(); };
+  const dateEndInput = root.querySelector('#analytics-date-end');
+  if(dateEndInput) dateEndInput.onchange = ()=>{ state.analyticsEndDate = dateEndInput.value; render(); };
+  const dateClearBtn = root.querySelector('#analytics-date-clear');
+  if(dateClearBtn) dateClearBtn.onclick = ()=>{ state.analyticsStartDate=''; state.analyticsEndDate=''; render(); };
+
   const exportTypeCsvBtn = root.querySelector('#export-type-csv');
   if(exportTypeCsvBtn) exportTypeCsvBtn.onclick = ()=>{
     const entries = collectEntriesForAnalytics();
@@ -1728,7 +1854,7 @@ function bindViewActions(root){
     exportTypeBreakdownPDF(rows, total, state.analyticsFilter);
   };
   const exportMonthsPdfBtn = root.querySelector('#export-months-pdf');
-  if(exportMonthsPdfBtn) exportMonthsPdfBtn.onclick = ()=> exportMonthsChartPDF(getLast6MonthsData());
+  if(exportMonthsPdfBtn) exportMonthsPdfBtn.onclick = ()=> exportMonthsChartPDF(getMonthsChartData());
 
   const themeSwitch = root.querySelector('#set-theme-switch');
   if(themeSwitch) themeSwitch.onclick = ()=>{ state.theme = state.theme==='dark' ? 'light':'dark'; applyTheme(); render(); };
