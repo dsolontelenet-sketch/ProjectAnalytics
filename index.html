@@ -68,10 +68,8 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   svg{display:block;}
   .icon{width:17px; height:17px; stroke:currentColor; fill:none; stroke-width:1.9; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0;}
 
-  /* ---------- APP SHELL ---------- */
   .app{display:grid; grid-template-columns:236px 1fr; height:100vh;}
 
-  /* ---------- SIDEBAR ---------- */
   .sidebar{
     background:var(--bg-elevated);
     border-right:1px solid var(--border-soft);
@@ -135,7 +133,6 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .theme-toggle button.active{background:var(--surface-2); color:var(--text-primary); box-shadow:inset 0 0 0 1px var(--border);}
   .theme-toggle .icon{width:14px; height:14px;}
 
-  /* ---------- MAIN ---------- */
   .main{display:flex; flex-direction:column; min-width:0; height:100vh;}
   .topbar{
     display:flex; align-items:center; justify-content:space-between;
@@ -180,7 +177,6 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .view-title{font-family:var(--font-mono); font-size:22px; font-weight:700; letter-spacing:-.3px;}
   .view-sub{color:var(--text-tertiary); font-size:13px; margin-top:5px;}
 
-  /* ---------- STAT CARDS ---------- */
   .stat-grid{display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; margin-bottom:26px;}
   .stat-card{
     background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
@@ -193,7 +189,6 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .stat-card__label{font-family:var(--font-mono); font-size:10.5px; letter-spacing:1px; text-transform:uppercase; color:var(--text-tertiary);}
   .stat-card__value{font-size:30px; font-weight:800; font-family:var(--font-mono); letter-spacing:-.5px;}
 
-  /* ---------- PROJECT CARDS (terminal style) ---------- */
   .project-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:16px;}
   .project-card{
     background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg);
@@ -238,7 +233,6 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
     border:1px solid rgba(34,211,238,.25); padding:3px 8px; border-radius:20px; width:fit-content;
   }
 
-  /* ---------- PROJECT DETAIL ---------- */
   .back-link{display:inline-flex; align-items:center; gap:7px; color:var(--text-tertiary); font-size:12.5px; font-family:var(--font-mono); margin-bottom:16px; background:transparent; border:none;}
   .back-link:hover{color:var(--text-primary);}
   .back-link .icon{width:14px; height:14px;}
@@ -272,7 +266,6 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .entry-row__date .icon{width:12.5px; height:12.5px;}
   .entry-row__actions{display:flex; align-items:center; gap:4px; flex-shrink:0;}
 
-  /* ---------- FILTER TABS ---------- */
   .tabs{display:flex; align-items:center; gap:4px; background:var(--surface); border:1px solid var(--border); border-radius:9px; padding:4px; width:fit-content; margin-bottom:20px; flex-wrap:wrap;}
   .tab{padding:7px 14px; border-radius:6px; font-size:12.5px; font-weight:600; color:var(--text-tertiary); background:transparent; border:none; font-family:var(--font-mono); transition:all var(--transition);}
   .tab.active{background:var(--surface-2); color:var(--text-primary); box-shadow:inset 0 0 0 1px var(--border);}
@@ -283,15 +276,12 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .field-search input{background:transparent; border:none; outline:none; font-size:13px; width:100%;}
   .field-search .icon{color:var(--text-tertiary);}
 
-  /* ---------- DATE RANGE FILTER (Analytics) ---------- */
   .date-range-bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:18px;}
   .date-range-field{display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:7px 12px;}
   .date-range-field label{font-family:var(--font-mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-tertiary); white-space:nowrap;}
   .date-range-field input[type=date]{background:transparent; border:none; outline:none; font-size:12.5px; color:var(--text-primary); font-family:var(--font-mono);}
   .date-range-sep{color:var(--text-tertiary); font-family:var(--font-mono); font-size:12px;}
 
-  /* Tint the native calendar-picker icon violet (it renders black by default,
-     which is invisible on the dark theme) — applies to every date input in the app. */
   input[type=date]::-webkit-calendar-picker-indicator{
     filter: invert(48%) sepia(75%) saturate(3000%) hue-rotate(228deg) brightness(99%) contrast(101%);
     cursor:pointer;
@@ -309,7 +299,6 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .empty-state h3{font-family:var(--font-mono); color:var(--text-secondary); font-size:15px; margin-bottom:6px;}
   .empty-state p{font-size:12.5px; max-width:320px; line-height:1.6;}
 
-  /* ---------- MODAL ---------- */
   .modal-overlay{
     position:fixed; inset:0; background:rgba(3,4,8,.6); backdrop-filter:blur(3px);
     display:flex; align-items:center; justify-content:center; z-index:100; padding:20px;
@@ -348,7 +337,6 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .confirm-body p{color:var(--text-secondary); font-size:13.5px; line-height:1.6;}
   .confirm-body b{color:var(--text-primary);}
 
-  /* ---------- COMMAND PALETTE ---------- */
   .cmdk-overlay{position:fixed; inset:0; background:rgba(3,4,8,.55); backdrop-filter:blur(3px); z-index:200; display:flex; align-items:flex-start; justify-content:center; padding-top:14vh;}
   .cmdk{width:100%; max-width:560px; background:var(--bg-elevated); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-lg); overflow:hidden; animation:modalIn .15s ease;}
   .cmdk-input-row{display:flex; align-items:center; gap:10px; padding:15px 18px; border-bottom:1px solid var(--border-soft);}
@@ -363,7 +351,6 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .cmdk-item .badge{margin-left:auto;}
   .cmdk-empty{padding:30px; text-align:center; color:var(--text-tertiary); font-size:12.5px;}
 
-  /* ---------- ANALYTICS ---------- */
   .panel{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px;}
   .panel-title{font-family:var(--font-mono); font-size:12.5px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--text-secondary); margin-bottom:18px; display:flex; align-items:center; gap:8px;}
   .analytics-grid{display:grid; grid-template-columns:1.3fr 1fr; gap:16px; margin-bottom:16px;}
@@ -378,7 +365,6 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .month-col__bar{width:100%; max-width:26px; background:linear-gradient(180deg, var(--accent-2), var(--accent)); border-radius:5px 5px 2px 2px; min-height:3px; transition:height .5s cubic-bezier(.2,.9,.3,1);}
   .month-col__label{font-size:10px; font-family:var(--font-mono); color:var(--text-tertiary);}
 
-  /* ---------- TYPE BREAKDOWN (grouped by actual entry type) ---------- */
   .type-bar-row{margin-bottom:20px;}
   .type-bar-row:last-child{margin-bottom:0;}
   .type-bar-row__top{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:9px;}
@@ -392,7 +378,6 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .panel-title-row .panel-title{margin-bottom:0;}
   .export-btn-group{display:flex; align-items:center; gap:8px;}
 
-  /* ---------- REPORTS TABLE ---------- */
   .table-wrap{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden;}
   table{width:100%; border-collapse:collapse; font-size:13px;}
   thead th{text-align:left; font-family:var(--font-mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--text-tertiary); padding:13px 16px; border-bottom:1px solid var(--border); background:var(--surface-2); white-space:nowrap;}
@@ -403,7 +388,6 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   td.name-cell{color:var(--text-primary); font-weight:600;}
   td.desc-cell{max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-tertiary);}
 
-  /* ---------- SETTINGS ---------- */
   .settings-grid{display:flex; flex-direction:column; gap:16px; max-width:640px;}
   .setting-row{display:flex; align-items:center; justify-content:space-between; gap:20px; padding:16px 18px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); }
   .setting-row__text b{font-size:13.5px; font-weight:600; display:block; margin-bottom:3px;}
@@ -418,7 +402,6 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .kv-row span:last-child{font-family:var(--font-mono); color:var(--text-secondary);}
   .danger-zone{border-color:rgba(245,85,108,.3);}
 
-  /* ---------- TOASTS ---------- */
   #toast-root{position:fixed; bottom:22px; right:22px; display:flex; flex-direction:column; gap:10px; z-index:300;}
   .toast{
     display:flex; align-items:center; gap:10px; background:var(--bg-elevated); border:1px solid var(--border);
@@ -446,7 +429,6 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
 <body>
 
 <div class="app">
-  <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="brand">
       <div class="brand__mark">PA</div>
@@ -477,7 +459,6 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
     </div>
   </aside>
 
-  <!-- MAIN -->
   <div class="main">
     <header class="topbar">
       <div class="breadcrumb">
@@ -510,9 +491,7 @@ import {
   getFirestore, collection, addDoc, doc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, query, where, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-/* ---------------- FIREBASE ---------------- */
 const firebaseConfig = {
   apiKey: "AIzaSyCB71bM-oVA-kxi9miO55pmpU2-N3pbCUo",
   authDomain: "apicat-cf3ed.firebaseapp.com",
@@ -524,9 +503,7 @@ const firebaseConfig = {
 };
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
-const auth = getAuth(fbApp);
 
-/* ---------------- ICONS ---------------- */
 const ICONS = {
   grid:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>',
   folder:'<path d="M3 7.5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
@@ -554,7 +531,11 @@ const ICONS = {
 };
 function icon(name, cls=''){ return `<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`; }
 
-/* ---------------- STATE ---------------- */
+/* ---------------- STATE ----------------
+   NOTE: Auth removed — this is now a single shared workspace. All projects/items
+   live directly under the "projects" collection with no ownerId filter, so anyone
+   with the deployed URL sees and can edit the same data. See Firestore rules note
+   below in the setup instructions. */
 const state = {
   route: 'dashboard',
   projects: [],
@@ -562,20 +543,14 @@ const state = {
   filter: 'all',
   search: '',
   theme: localStorage.getItem('po-theme') || 'dark',
-  uid: null,
   activeProjectId: null,
   projectItems: [],
   itemsLoaded: false,
   itemsUnsub: null,
   analyticsFilter: 'all',
-  // Date range filter for the Analytics view (applies to entry.date). Empty string = no bound.
   analyticsStartDate: '',
   analyticsEndDate: '',
-  // Free-text filter for the Reports ledger (matches project, title, type, notes).
   reportsSearch: '',
-  // Aggregated entries across ALL projects (keyed by projectId), kept live via
-  // one onSnapshot listener per project. This is what Analytics AND Reports read
-  // from — entries (tickets), not projects, are the unit being counted/listed.
   allItems: {},
   allItemsUnsubs: {},
 };
@@ -596,16 +571,12 @@ const STATUS_META = {
 
 const PROJECT_TYPES = ['Dispute', 'Partner Portal', 'Inquiry'];
 
-// Visual identity for the known entry "types" (used in cards + analytics).
-// Colors are literal hex (not CSS vars) so they can also be reused when drawing PDFs.
 const TYPE_META = {
   'Dispute':        { icon:'zap',     color:'#f5556c', bg:'rgba(245,85,108,.14)' },
   'Partner Portal': { icon:'link',    color:'#3b82f6', bg:'rgba(59,130,246,.14)' },
   'Inquiry':        { icon:'message', color:'#6f6bff', bg:'rgba(111,107,255,.14)' },
 };
 
-// Any custom / free-typed name gets its own stable color from this palette
-// (based on a hash of the name) instead of being lumped into a generic "Other" bucket.
 const EXTRA_PALETTE = [
   { color:'#a78bfa', bg:'rgba(167,139,250,.14)' },
   { color:'#f472b6', bg:'rgba(244,114,182,.14)' },
@@ -632,7 +603,6 @@ const PRIORITY_META = {
   critical: { label:'4', color:'var(--danger)',        bg:'rgba(245,85,108,.14)' },
 };
 
-/* ---------------- THEME ---------------- */
 function applyTheme(){
   document.documentElement.setAttribute('data-theme', state.theme);
   document.getElementById('btn-theme-dark').classList.toggle('active', state.theme==='dark');
@@ -643,7 +613,6 @@ document.getElementById('btn-theme-dark').onclick = ()=>{ state.theme='dark'; ap
 document.getElementById('btn-theme-light').onclick = ()=>{ state.theme='light'; applyTheme(); };
 applyTheme();
 
-/* ---------------- HELPERS ---------------- */
 function fmtDate(v){
   if(!v) return '—';
   let d;
@@ -674,7 +643,6 @@ function toast(msg, type='info'){
   setTimeout(()=>{ el.style.transition='opacity .25s, transform .25s'; el.style.opacity='0'; el.style.transform='translateX(20px)'; setTimeout(()=>el.remove(), 250); }, 2600);
 }
 
-/* ---------------- RENDER: SIDEBAR ---------------- */
 function renderNav(){
   const list = document.getElementById('nav-list');
   const effectiveRoute = state.route === 'project-detail' ? 'projects' : state.route;
@@ -716,7 +684,6 @@ function goToProjectDetail(id){
   render();
 }
 
-/* ---------------- MODAL HELPERS ---------------- */
 function openModal(html, opts={}){
   const root = document.getElementById('modal-root');
   root.innerHTML = `<div class="modal-overlay" id="modal-overlay">${html}</div>`;
@@ -727,10 +694,8 @@ function openModal(html, opts={}){
 }
 function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
 
-/* ---------------- PROJECT CRUD ---------------- */
 async function createProject(data){
   await addDoc(collection(db,'projects'), {
-    ownerId: state.uid,
     name: data.name,
     description: data.description,
     startDate: data.startDate,
@@ -753,7 +718,6 @@ async function deleteProjectDoc(id){
   await deleteDoc(doc(db,'projects', id));
 }
 
-/* ---------------- PROJECT ITEM (ENTRY) CRUD ---------------- */
 async function createItem(projectId, data){
   await addDoc(collection(db,'projects', projectId, 'items'), {
     title: data.title,
@@ -768,10 +732,6 @@ async function updateItem(projectId, itemId, data){
   await updateDoc(doc(db,'projects', projectId, 'items', itemId), data);
 }
 
-/* ---------------- CROSS-PROJECT ENTRY SYNC (for Analytics + Reports) ---------------- */
-// Keeps a live onSnapshot listener per project's "items" subcollection so Analytics
-// and Reports can aggregate/list entries by type across the ENTIRE workspace, not
-// just one project.
 function syncAllItemsListeners(){
   const currentIds = new Set(state.projects.map(p=>p.id));
   Object.keys(state.allItemsUnsubs).forEach(pid=>{
@@ -796,7 +756,6 @@ async function deleteItem(projectId, itemId){
   await deleteDoc(doc(db,'projects', projectId, 'items', itemId));
 }
 
-/* ---------------- PROJECT FORM MODAL ---------------- */
 function openProjectForm(existing=null){
   const isEdit = !!existing;
   const p = existing || { name:'', description:'', startDate: todayStr(), status:'active' };
@@ -902,7 +861,6 @@ function openConfirm({ title, message, confirmLabel, danger=true, onConfirm }){
   };
 }
 
-/* ---------------- ENTRY (ITEM) FORM MODAL ---------------- */
 function openItemForm(projectId, existing=null){
   const isEdit = !!existing;
   const it = existing || { title:'', type:'', date: todayStr(), priority:'medium', notes:'' };
@@ -978,7 +936,6 @@ function openItemForm(projectId, existing=null){
   };
 }
 
-/* ---------------- PROJECT CARD ---------------- */
 function projectCard(p){
   const meta = STATUS_META[p.status] || STATUS_META.active;
   const tMeta = typeMetaFor(p.name);
@@ -1051,12 +1008,8 @@ function bindCardActions(container){
   });
 }
 
-/* ---------------- VIEWS ---------------- */
 function activeProjects(){ return state.projects.filter(p=>!p.archived); }
 
-/* Shared table renderer for a list of projects — used on Dashboard's "Recently created"
-   panel. Reuses the same data-open / data-act conventions as project cards so
-   bindCardActions() (already called after every render) wires it up for free. */
 function projectTableRow(p){
   const meta = STATUS_META[p.status] || STATUS_META.active;
   const tMeta = typeMetaFor(p.name);
@@ -1195,8 +1148,6 @@ function emptyState(title, sub, showCta){
     </div>`;
 }
 
-// Uncategorized (blank) entry types get a neutral pill instead of a hashed color,
-// since an empty string isn't a real "type" the way a hashed custom name is.
 function entryTypeMeta(t){
   const key = (t && t.trim()) ? t.trim() : '';
   if(!key) return { icon:'file', color:'var(--text-tertiary)', bg:'var(--surface-2)' };
@@ -1306,9 +1257,6 @@ function bindProjectDetailActions(root){
   if(back) back.onclick = ()=>{ leaveProjectDetail(); state.route='projects'; render(); };
 
   if(p){
-    // NOTE: both #detail-new-entry (header button) and #empty-new-entry (empty-state
-    // button) can be present in the DOM at the same time — querySelectorAll + forEach
-    // ensures BOTH get wired up, not just whichever one comes first in the markup.
     root.querySelectorAll('#detail-new-entry, #empty-new-entry').forEach(btn=>{
       btn.onclick = ()=> openItemForm(p.id);
     });
@@ -1362,10 +1310,6 @@ function bindProjectDetailActions(root){
   }
 }
 
-/* ---------------- ANALYTICS: TYPE BREAKDOWN (grouped by actual ENTRY type) ---------------- */
-// Which projects feed the type-breakdown chart, based on the analytics filter tab.
-// (Only used to decide WHICH projects' entries count — the counting itself is by
-// entry.type, not by project name.)
 function filterProjectsForAnalytics(){
   let list = state.analyticsFilter==='archived' ? state.projects.filter(p=>p.archived) : activeProjects();
   if(state.analyticsFilter!=='all' && state.analyticsFilter!=='archived'){
@@ -1374,9 +1318,6 @@ function filterProjectsForAnalytics(){
   return list;
 }
 
-// True if an entry's date falls within the selected analytics date range
-// (state.analyticsStartDate / state.analyticsEndDate). Either bound may be empty,
-// meaning that side is unbounded. Entries with no date are excluded once any bound is set.
 function isWithinAnalyticsDateRange(it){
   const { analyticsStartDate:start, analyticsEndDate:end } = state;
   if(!start && !end) return true;
@@ -1387,9 +1328,6 @@ function isWithinAnalyticsDateRange(it){
   return true;
 }
 
-// Flattens every entry from the projects that pass the current analytics filter into
-// a single array — this is what gets counted for the ticket-type breakdown, and what
-// gets exported. Also applies the start/end date range filter.
 function collectEntriesForAnalytics(){
   const projectList = filterProjectsForAnalytics();
   const entries = [];
@@ -1399,10 +1337,6 @@ function collectEntriesForAnalytics(){
   return entries;
 }
 
-// Groups ENTRIES by their `type` field (e.g. "Dispute", "Partner Portal", a custom
-// type, or blank → "Uncategorized") — no longer grouped by the project's name.
-// Known types (Dispute / Partner Portal / Inquiry) are always shown first (even at 0),
-// then any custom types, ordered by count, with "Uncategorized" last.
 function computeTypeBreakdown(entries){
   const counts = new Map();
   entries.forEach(it=>{
@@ -1430,7 +1364,6 @@ function computeTypeBreakdown(entries){
   return { rows: allRows, total: entries.length };
 }
 
-// Short label used in export filenames / PDF subheads to reflect the active date range.
 function dateRangeLabel(){
   const { analyticsStartDate:start, analyticsEndDate:end } = state;
   if(!start && !end) return 'all-dates';
@@ -1489,10 +1422,6 @@ function exportTypeBreakdownPDF(rows, total, filterLabel){
   toast('Type breakdown exported (PDF).', 'success');
 }
 
-// Month-by-month entry counts for the chart. Normally this shows the last 6 calendar
-// months (by project creation date, as before). When an analytics date range is set,
-// it switches to counting ENTRIES (by entry.date) grouped by month across that range
-// instead, so the chart reflects the same filter as the breakdown above it.
 function getLast6MonthsData(){
   const months = [];
   const now = new Date();
@@ -1510,10 +1439,6 @@ function getLast6MonthsData(){
   return months;
 }
 
-// Builds one bucket per month between the selected start/end dates (inclusive),
-// counting entries (filtered by the active analytics project filter) whose date
-// falls in that month. Falls back to a sensible single-month span if only one
-// bound is given.
 function getRangeMonthsData(){
   const { analyticsStartDate:start, analyticsEndDate:end } = state;
   const startD = start ? new Date(start+'T00:00:00') : (end ? new Date(end+'T00:00:00') : new Date());
@@ -1678,9 +1603,6 @@ function renderAnalytics(){
   `;
 }
 
-/* ---------------- REPORTS: ALL ENTRIES ACROSS ALL PROJECTS ---------------- */
-// Flattens every entry from every project (regardless of status/archived) into one
-// list, each tagged with its parent project's name/status for display.
 function collectAllEntriesForReports(){
   const entries = [];
   state.projects.forEach(p=>{
@@ -1708,7 +1630,6 @@ function reportEntryRow(it){
   </tr>`;
 }
 
-// Applies state.reportsSearch against project name, entry title, type, and notes.
 function filterReportsEntries(entries){
   const q = state.reportsSearch.trim().toLowerCase();
   if(!q) return entries;
@@ -1777,8 +1698,7 @@ function renderSettings(){
       <div class="panel">
         <div class="panel-title">${icon('zap')} Connection</div>
         <div class="kv-row"><span>project_id</span><span>${firebaseConfig.projectId}</span></div>
-        <div class="kv-row"><span>auth_mode</span><span>anonymous</span></div>
-        <div class="kv-row"><span>session_uid</span><span>${state.uid ? state.uid.slice(0,10)+'…' : '—'}</span></div>
+        <div class="kv-row"><span>auth_mode</span><span>none (open workspace)</span></div>
         <div class="kv-row"><span>sync_status</span><span>live</span></div>
       </div>
 
@@ -1796,7 +1716,6 @@ function renderSettings(){
   `;
 }
 
-/* ---------------- ROUTER / RENDER ---------------- */
 function render(){
   renderNav();
   const crumb = document.getElementById('crumb-current');
@@ -1838,9 +1757,6 @@ function updateTopbarNewButton(){
 }
 
 function bindViewActions(root){
-  // NOTE: #dash-new / #proj-new / #empty-new can appear together (e.g. an empty
-  // filtered list still shows the top "New Project" button AND the empty-state's own
-  // button) — querySelectorAll + forEach wires up every one of them, not just the first.
   root.querySelectorAll('#dash-new, #proj-new, #empty-new').forEach(btn=>{
     btn.onclick = ()=> openProjectForm();
   });
@@ -1869,9 +1785,6 @@ function bindViewActions(root){
     t.onclick = ()=>{ state.analyticsFilter = t.dataset.analyticsFilter; render(); };
   });
 
-  // Date range inputs — updating either bound re-renders the whole Analytics view
-  // (breakdown, snapshot counts, and the months/entries chart all read from the
-  // same state.analyticsStartDate/EndDate).
   const dateStartInput = root.querySelector('#analytics-date-start');
   if(dateStartInput) dateStartInput.onchange = ()=>{ state.analyticsStartDate = dateStartInput.value; render(); };
   const dateEndInput = root.querySelector('#analytics-date-end');
@@ -1929,7 +1842,6 @@ function exportCSV(){
   toast('Report exported.', 'success');
 }
 
-/* ---------------- COMMAND PALETTE ---------------- */
 let cmdkOpen = false;
 function openCmdk(){
   cmdkOpen = true;
@@ -2003,34 +1915,23 @@ document.getElementById('btn-new-project').onclick = ()=>{
   }
 };
 
-/* ---------------- BOOT / FIRESTORE SYNC ---------------- */
-onAuthStateChanged(auth, (user)=>{
-  if(user){
-    state.uid = user.uid;
-    const q = query(collection(db,'projects'), where('ownerId','==', user.uid));
-    onSnapshot(q, (snap)=>{
-      state.projects = snap.docs.map(d=> ({ id:d.id, ...d.data() }));
-      state.loaded = true;
-      document.getElementById('conn-label').textContent = 'live';
-      syncAllItemsListeners();
-      render();
-    }, (err)=>{
-      console.error(err);
-      state.loaded = true;
-      document.getElementById('conn-label').textContent = 'offline';
-      document.getElementById('view-root').innerHTML = `
-        <div class="empty-state">
-          ${icon('alert')}
-          <h3>Couldn't reach Firestore</h3>
-          <p>${esc(err.message || 'Check your Firestore security rules allow authenticated reads/writes on the "projects" collection.')}</p>
-        </div>`;
-    });
-  }
-});
-signInAnonymously(auth).catch((err)=>{
+const q0 = query(collection(db,'projects'));
+onSnapshot(q0, (snap)=>{
+  state.projects = snap.docs.map(d=> ({ id:d.id, ...d.data() }));
+  state.loaded = true;
+  document.getElementById('conn-label').textContent = 'live';
+  syncAllItemsListeners();
+  render();
+}, (err)=>{
   console.error(err);
-  document.getElementById('conn-label').textContent = 'auth error';
-  toast('Firebase auth failed: ' + err.message, 'error');
+  state.loaded = true;
+  document.getElementById('conn-label').textContent = 'offline';
+  document.getElementById('view-root').innerHTML = `
+    <div class="empty-state">
+      ${icon('alert')}
+      <h3>Couldn't reach Firestore</h3>
+      <p>${esc(err.message || 'Check your Firestore security rules allow public reads/writes on the "projects" collection.')}</p>
+    </div>`;
 });
 
 render();
