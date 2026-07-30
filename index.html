@@ -399,6 +399,7 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   tbody td{padding:13px 16px; border-bottom:1px solid var(--border-soft); color:var(--text-secondary); vertical-align:top;}
   tbody tr:last-child td{border-bottom:none;}
   tbody tr:hover{background:var(--surface-hover);}
+  tbody tr.row-clickable{cursor:pointer;}
   td.name-cell{color:var(--text-primary); font-weight:600;}
   td.desc-cell{max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-tertiary);}
 
@@ -570,6 +571,8 @@ const state = {
   // Date range filter for the Analytics view (applies to entry.date). Empty string = no bound.
   analyticsStartDate: '',
   analyticsEndDate: '',
+  // Free-text filter for the Reports ledger (matches project, title, type, notes).
+  reportsSearch: '',
   // Aggregated entries across ALL projects (keyed by projectId), kept live via
   // one onSnapshot listener per project. This is what Analytics AND Reports read
   // from — entries (tickets), not projects, are the unit being counted/listed.
@@ -1058,8 +1061,8 @@ function projectTableRow(p){
   const meta = STATUS_META[p.status] || STATUS_META.active;
   const tMeta = typeMetaFor(p.name);
   return `
-  <tr>
-    <td class="name-cell" data-open="${p.id}" style="cursor:pointer;">
+  <tr data-open="${p.id}" class="row-clickable">
+    <td class="name-cell">
       <span class="type-pill" style="color:${tMeta.color}; background:${tMeta.bg}; border-color:${tMeta.color}">${icon(tMeta.icon)} ${esc(p.name)}</span>
     </td>
     <td><span class="badge" style="background:${meta.bg}; color:${meta.color}">${meta.label}</span></td>
@@ -1705,8 +1708,23 @@ function reportEntryRow(it){
   </tr>`;
 }
 
+// Applies state.reportsSearch against project name, entry title, type, and notes.
+function filterReportsEntries(entries){
+  const q = state.reportsSearch.trim().toLowerCase();
+  if(!q) return entries;
+  return entries.filter(it=>{
+    const typeLabel = (it.type && it.type.trim()) ? it.type.trim() : 'uncategorized';
+    return (it.projectName||'').toLowerCase().includes(q)
+      || (it.title||'').toLowerCase().includes(q)
+      || typeLabel.toLowerCase().includes(q)
+      || (it.notes||'').toLowerCase().includes(q);
+  });
+}
+
 function renderReports(){
-  const entries = collectAllEntriesForReports();
+  const allEntries = collectAllEntriesForReports();
+  const entries = filterReportsEntries(allEntries);
+  const q = state.reportsSearch;
   return `
     <div class="view-header">
       <div>
@@ -1715,6 +1733,14 @@ function renderReports(){
       </div>
       <button class="btn btn-ghost" id="export-csv">${icon('download')} Export CSV</button>
     </div>
+
+    <div class="toolbar">
+      <div class="field-search">
+        ${icon('search')}
+        <input type="text" id="reports-search" placeholder="Search by project, title, type or notes…" value="${esc(q)}">
+      </div>
+    </div>
+
     ${entries.length ? `
     <div class="table-wrap">
       <table>
@@ -1723,7 +1749,10 @@ function renderReports(){
         </tr></thead>
         <tbody>${entries.map(reportEntryRow).join('')}</tbody>
       </table>
-    </div>` : emptyState('No entries to report', 'Once you add entries inside your projects, they will show up here.', false)}
+    </div>` : emptyState(
+        q ? 'No matches found' : 'No entries to report',
+        q ? `No entries match "${esc(q)}".` : 'Once you add entries inside your projects, they will show up here.',
+        false)}
   `;
 }
 
@@ -1827,6 +1856,15 @@ function bindViewActions(root){
   const exportBtn = root.querySelector('#export-csv');
   if(exportBtn) exportBtn.onclick = exportCSV;
 
+  const reportsSearchInput = root.querySelector('#reports-search');
+  if(reportsSearchInput){
+    reportsSearchInput.oninput = ()=>{
+      state.reportsSearch = reportsSearchInput.value;
+      render();
+      setTimeout(()=>{ const el=document.getElementById('reports-search'); if(el){ el.focus(); el.setSelectionRange(el.value.length, el.value.length);} }, 0);
+    };
+  }
+
   root.querySelectorAll('[data-analytics-filter]').forEach(t=>{
     t.onclick = ()=>{ state.analyticsFilter = t.dataset.analyticsFilter; render(); };
   });
@@ -1872,7 +1910,7 @@ function bindViewActions(root){
 }
 
 function exportCSV(){
-  const entries = collectAllEntriesForReports();
+  const entries = filterReportsEntries(collectAllEntriesForReports());
   const headers = ['Project','Title','Type','Priority','Date','Notes'];
   const rows = entries.map(it=>[
     it.projectName,
