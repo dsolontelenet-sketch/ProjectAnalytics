@@ -289,6 +289,29 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .field textarea{resize:vertical; min-height:80px; line-height:1.5; font-family:var(--font-sans);}
   .field-hint{font-size:11px; color:var(--text-tertiary); line-height:1.5;}
   .field-row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .agent-picker{position:relative; width:100%;}
+  .agent-picker-trigger{display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; min-height:42px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:7px 10px; color:var(--text-primary); text-align:left; transition:border-color var(--transition), box-shadow var(--transition);}
+  .agent-picker-trigger:hover,.agent-picker.open .agent-picker-trigger{border-color:var(--accent); box-shadow:0 0 0 2px rgba(111,107,255,.12);}
+  .agent-picker-trigger .icon{width:15px; height:15px; color:var(--text-tertiary); flex-shrink:0;}
+  .agent-picker-value,.agent-picker-option{display:flex; align-items:center; gap:9px; min-width:0;}
+  .agent-picker-value__text,.agent-picker-option__text{display:flex; flex-direction:column; min-width:0; line-height:1.2;}
+  .agent-picker-value__name,.agent-picker-option__name{font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .agent-picker-value__role,.agent-picker-option__role{font-size:10.5px; color:var(--text-tertiary); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .agent-picker-value.empty{color:var(--text-tertiary); font-style:italic;}
+  .agent-picker-menu{position:absolute; left:0; right:0; top:calc(100% + 6px); z-index:20; display:none; background:var(--bg-elevated); border:1px solid var(--border); border-radius:9px; box-shadow:var(--shadow-lg); overflow:hidden;}
+  .agent-picker.open .agent-picker-menu{display:block;}
+  .agent-picker-search{display:flex; align-items:center; gap:8px; padding:8px; border-bottom:1px solid var(--border-soft);}
+  .agent-picker-search .icon{width:14px; height:14px; color:var(--text-tertiary); flex-shrink:0;}
+  .agent-picker-search input{width:100%; background:var(--surface); border:1px solid var(--border); border-radius:6px; color:var(--text-primary); outline:none; padding:7px 8px; font-size:12px;}
+  .agent-picker-search input:focus{border-color:var(--accent);}
+  .agent-picker-options{max-height:260px; overflow-y:auto; padding:5px; scrollbar-width:thin; scrollbar-color:var(--border) transparent;}
+  .agent-picker-options::-webkit-scrollbar{width:6px;}
+  .agent-picker-options::-webkit-scrollbar-track{background:transparent;}
+  .agent-picker-options::-webkit-scrollbar-thumb{background:var(--border); border-radius:10px;}
+  .agent-picker-option{width:100%; border:none; background:transparent; color:var(--text-secondary); padding:8px; border-radius:7px; text-align:left; cursor:pointer;}
+  .agent-picker-option:hover,.agent-picker-option.selected{background:var(--surface-hover); color:var(--text-primary);}
+  .agent-picker-option .avatar-circle{width:30px; height:30px; font-size:10px;}
+  .agent-picker-empty{padding:18px 10px; text-align:center; color:var(--text-tertiary); font-size:12px;}
   .confirm-icon{width:44px; height:44px; border-radius:10px; background:rgba(245,85,108,.12); color:var(--danger); display:flex; align-items:center; justify-content:center; margin-bottom:4px;}
   .confirm-icon .icon{width:22px; height:22px;}
   .confirm-body p{color:var(--text-secondary); font-size:13.5px; line-height:1.6;}
@@ -316,7 +339,7 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .month-col__bar{width:100%; max-width:26px; background:linear-gradient(180deg, var(--accent-2), var(--accent)); border-radius:5px 5px 2px 2px; min-height:3px; transition:height .5s cubic-bezier(.2,.9,.3,1);}
   .month-col__label{font-size:10px; font-family:var(--font-mono); color:var(--text-tertiary);}
 
-  .type-bar-row{margin-bottom:70px;}
+  .type-bar-row{margin-bottom:20px;}
   .type-bar-row:last-child{margin-bottom:0;}
   .type-bar-row__top{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:9px;}
   .type-bar-row__label{display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700;}
@@ -434,7 +457,7 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .perf-count{font-family:var(--font-mono); font-size:12px; color:var(--text-tertiary); white-space:nowrap;}
   .perf-track{height:8px; border-radius:20px; background:var(--surface-2); overflow:hidden;}
   .perf-fill{height:100%; border-radius:20px; transition:width .5s cubic-bezier(.2,.9,.3,1); min-width:2px;}
-  .perf-list{max-height:250px; overflow-y:auto; padding-right:8px; scrollbar-width:thin; scrollbar-color:var(--border) transparent;}
+  .perf-list{max-height:340px; overflow-y:auto; padding-right:8px; scrollbar-width:thin; scrollbar-color:var(--border) transparent;}
   .perf-list::-webkit-scrollbar{width:6px;}
   .perf-list::-webkit-scrollbar-track{background:transparent;}
   .perf-list::-webkit-scrollbar-thumb{background:var(--border); border-radius:10px;}
@@ -598,6 +621,7 @@ const ICONS = {
   back:'<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>',
   check:'<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 17.01"/>',
   search:'<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  'chevron-down':'<polyline points="6 9 12 15 18 9"/>',
   download:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
   upload:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
   alert:'<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
@@ -988,11 +1012,63 @@ async function deleteAgentPhoto(agentId){
 
 /* ---------------- FORMS ---------------- */
 function agentOptionsHtml(selectedId){
-  const opts = [`<option value="">— Unassigned —</option>`];
+  const opts = [];
   [...state.agents].sort((a,b)=> a.name.localeCompare(b.name)).forEach(a=>{
     opts.push(`<option value="${a.id}" ${selectedId===a.id?'selected':''}>${esc(a.name)}${a.role?' · '+esc(a.role):''}</option>`);
   });
   return opts.join('');
+}
+function agentPickerValueHtml(selectedId){
+  const agent = selectedId ? agentById(selectedId) : null;
+  if(!agent){
+    return `<div class="agent-picker-value empty">${agentAvatar(null,'sm')}<span class="agent-picker-value__text"><span class="agent-picker-value__name">Select an agent</span><span class="agent-picker-value__role">Required</span></span></div>`;
+  }
+  return `<div class="agent-picker-value">${agentAvatar(agent,'sm')}<span class="agent-picker-value__text"><span class="agent-picker-value__name">${esc(agent.name)}</span>${agent.role?`<span class="agent-picker-value__role">${esc(agent.role)}</span>`:''}</span></div>`;
+}
+function agentPickerOptionsHtml(selectedId, query=''){
+  const q = query.trim().toLowerCase();
+  const agents = [...state.agents]
+    .sort((a,b)=> a.name.localeCompare(b.name))
+    .filter(a=> !q || a.name.toLowerCase().includes(q) || (a.role||'').toLowerCase().includes(q));
+  const options = [];
+  agents.forEach(a=>{
+    options.push(`<button type="button" class="agent-picker-option ${selectedId===a.id?'selected':''}" data-agent-picker-option="${esc(a.id)}">
+      ${agentAvatar(a,'sm')}<span class="agent-picker-option__text"><span class="agent-picker-option__name">${esc(a.name)}</span><span class="agent-picker-option__role">${esc(a.role || 'No role set')}</span></span>
+    </button>`);
+  });
+  return options.length
+    ? options.join('')
+    : `<div class="agent-picker-empty">${state.agents.length ? 'No agents match your search.' : 'No agents available. Add an agent first.'}</div>`;
+}
+function bindAgentPicker(selectedId=''){
+  const picker = document.getElementById('i-agent-picker');
+  if(!picker) return;
+  const hidden = picker.querySelector('#i-agent');
+  const trigger = picker.querySelector('.agent-picker-trigger');
+  const search = picker.querySelector('.agent-picker-search input');
+  const options = picker.querySelector('.agent-picker-options');
+  const renderOptions = query=>{
+    options.innerHTML = agentPickerOptionsHtml(hidden.value, query);
+    options.querySelectorAll('[data-agent-picker-option]').forEach(option=>{
+      option.onclick = ()=>{
+        hidden.value = option.dataset.agentPickerOption || '';
+        trigger.querySelector('.agent-picker-value').outerHTML = agentPickerValueHtml(hidden.value);
+        picker.classList.remove('open');
+        search.value = '';
+        renderOptions('');
+      };
+    });
+  };
+  hidden.value = selectedId || '';
+  trigger.onclick = ()=>{
+    const isOpen = picker.classList.toggle('open');
+    if(isOpen){
+      search.focus();
+      search.select();
+    }
+  };
+  search.oninput = ()=> renderOptions(search.value);
+  renderOptions('');
 }
 
 function openTicketForm(existing=null){
@@ -1030,9 +1106,22 @@ function openTicketForm(existing=null){
           </div>
         </div>
         <div class="field">
-          <label>Assigned To</label>
-          <select id="i-agent">${agentOptionsHtml(it.assignedAgentId)}</select>
-          ${!state.agents.length ? `<div class="field-hint">No agents yet — add one from the Agents tab to assign tickets.</div>` : ''}
+          <label>Assigned To <span class="req">*</span></label>
+          <div class="agent-picker" id="i-agent-picker">
+            <input type="hidden" id="i-agent" value="${esc(it.assignedAgentId || '')}">
+            <button type="button" class="agent-picker-trigger" aria-haspopup="listbox" aria-expanded="false">
+              ${agentPickerValueHtml(it.assignedAgentId)}
+              ${icon('chevron-down')}
+            </button>
+            <div class="agent-picker-menu">
+              <div class="agent-picker-search">
+                ${icon('search')}
+                <input type="text" placeholder="Search agents by name or role…" autocomplete="off">
+              </div>
+              <div class="agent-picker-options" role="listbox">${agentPickerOptionsHtml(it.assignedAgentId)}</div>
+            </div>
+          </div>
+          ${!state.agents.length ? `<div class="field-hint">No agents yet — create an agent from the Agents tab before adding a ticket.</div>` : `<div class="field-hint">Choose an agent with their photo to make assignment easy.</div>`}
         </div>
         <div class="field">
           <label>Notes</label>
@@ -1041,11 +1130,12 @@ function openTicketForm(existing=null){
       </div>
       <div class="modal-foot">
         <button class="btn btn-ghost" data-close-modal>Cancel</button>
-        <button class="btn btn-primary" id="i-submit">${icon('check')} ${isEdit?'Save Ticket':'Add Ticket'}</button>
+        <button class="btn btn-primary" id="i-submit" ${!state.agents.length?'disabled':''}>${icon('check')} ${isEdit?'Save Ticket':'Add Ticket'}</button>
       </div>
     </div>
   `);
 
+  bindAgentPicker(it.assignedAgentId);
   // Dynamically update priority options when type changes
   document.getElementById('i-type').addEventListener('input', function(){
     const sel = document.getElementById('i-priority');
@@ -1068,6 +1158,10 @@ function openTicketForm(existing=null){
     const notes = document.getElementById('i-notes').value.trim();
     if(!title || !date){
       toast('Please fill in a title and date.', 'error');
+      return;
+    }
+    if(!assignedAgentId || !agentById(assignedAgentId)){
+      toast(state.agents.length ? 'Please choose an agent before saving the ticket.' : 'Create an agent first, then add the ticket.', 'error');
       return;
     }
     const btn = document.getElementById('i-submit');
