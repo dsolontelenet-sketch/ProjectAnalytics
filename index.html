@@ -233,8 +233,12 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .date-range-bar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:18px;}
   .date-range-field{display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:7px 12px;}
   .date-range-field label{font-family:var(--font-mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.5px; color:var(--text-tertiary); white-space:nowrap;}
-  .date-range-field input[type=date]{background:transparent; border:none; outline:none; font-size:12.5px; color:var(--text-primary); font-family:var(--font-mono);}
+  .date-range-field input[type=date]{background:transparent; border:none; outline:none; font-size:12.5px; color:var(--text-primary); font-family:var(--font-mono); width:132px;}
   .date-range-sep{color:var(--text-tertiary); font-family:var(--font-mono); font-size:12px;}
+  .note-view-btn{display:inline-flex; align-items:center; gap:5px; color:var(--accent); background:transparent; border:1px solid transparent; border-radius:6px; padding:4px 7px; font-family:var(--font-mono); font-size:11px; cursor:pointer; transition:all var(--transition);}
+  .note-view-btn:hover{color:var(--text-primary); background:rgba(111,107,255,.1); border-color:rgba(111,107,255,.3);}
+  .note-view-btn .icon{width:13px; height:13px;}
+  .note-content{color:var(--text-secondary); font-size:13.5px; line-height:1.7; white-space:normal; overflow-wrap:anywhere; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; max-height:52vh; overflow-y:auto;}
 
   input[type=date]::-webkit-calendar-picker-indicator{
     filter: invert(48%) sepia(75%) saturate(3000%) hue-rotate(228deg) brightness(99%) contrast(101%);
@@ -308,7 +312,7 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .month-col__bar{width:100%; max-width:26px; background:linear-gradient(180deg, var(--accent-2), var(--accent)); border-radius:5px 5px 2px 2px; min-height:3px; transition:height .5s cubic-bezier(.2,.9,.3,1);}
   .month-col__label{font-size:10px; font-family:var(--font-mono); color:var(--text-tertiary);}
 
-  .type-bar-row{margin-bottom:20px;}
+  .type-bar-row{margin-bottom:70px;}
   .type-bar-row:last-child{margin-bottom:0;}
   .type-bar-row__top{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:9px;}
   .type-bar-row__label{display:flex; align-items:center; gap:8px; font-size:13.5px; font-weight:700;}
@@ -426,6 +430,10 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .perf-count{font-family:var(--font-mono); font-size:12px; color:var(--text-tertiary); white-space:nowrap;}
   .perf-track{height:8px; border-radius:20px; background:var(--surface-2); overflow:hidden;}
   .perf-fill{height:100%; border-radius:20px; transition:width .5s cubic-bezier(.2,.9,.3,1); min-width:2px;}
+  .perf-list{max-height:250px; overflow-y:auto; padding-right:8px; scrollbar-width:thin; scrollbar-color:var(--border) transparent;}
+  .perf-list::-webkit-scrollbar{width:6px;}
+  .perf-list::-webkit-scrollbar-track{background:transparent;}
+  .perf-list::-webkit-scrollbar-thumb{background:var(--border); border-radius:10px;}
 
   .table-wrap{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden;}
   table{width:100%; border-collapse:collapse; font-size:13px;}
@@ -691,7 +699,59 @@ function fmtDate(v){
   if (v && typeof v.toDate === 'function') d = v.toDate();
   else d = new Date(v);
   if (isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('en-US', { year:'numeric', month:'short', day:'numeric' });
+  const mm = String(d.getUTCMonth()+1).padStart(2,'0');
+  const dd = String(d.getUTCDate()).padStart(2,'0');
+  const yyyy = d.getUTCFullYear();
+  return mm + '/' + dd + '/' + yyyy;
+}
+function analyticsDateDisplay(v){
+  return v ? fmtDate(v) : '';
+}
+function parseAnalyticsDateInput(value){
+  const raw = value.trim();
+  if(!raw) return '';
+  const match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if(!match) return null;
+  const [, mm, dd, yyyy] = match;
+  const date = new Date(Date.UTC(Number(yyyy), Number(mm)-1, Number(dd)));
+  if(date.getUTCFullYear() !== Number(yyyy) || date.getUTCMonth() !== Number(mm)-1 || date.getUTCDate() !== Number(dd)) return null;
+  return `${yyyy}-${mm}-${dd}`;
+}
+function formatAnalyticsDateInput(value){
+  const digits = value.replace(/\D/g,'').slice(0,8);
+  if(digits.length <= 2) return digits;
+  if(digits.length <= 4) return `${digits.slice(0,2)}/${digits.slice(2)}`;
+  return `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`;
+}
+function noteButton(it){
+  return it.notes
+    ? `<button class="note-view-btn" type="button" data-view-note="${esc(it.id)}">${icon('file')} View note</button>`
+    : '—';
+}
+function openNoteModal(ticket){
+  openModal(`
+    <div class="modal" style="max-width:560px;">
+      <div class="modal-head">
+        <h3>${icon('file')} Note</h3>
+        <button class="icon-btn" data-close-modal>${icon('x')}</button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size:12px;color:var(--text-tertiary);font-family:var(--font-mono);">${esc(ticket.title || 'Ticket note')}</div>
+        <div class="note-content">${esc(ticket.notes || 'No note added.')}</div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" data-close-modal>Close</button>
+      </div>
+    </div>
+  `);
+}
+function bindNoteButtons(root=document){
+  root.querySelectorAll('[data-view-note]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const ticket = state.tickets.find(it=>it.id === btn.dataset.viewNote);
+      if(ticket) openNoteModal(ticket);
+    };
+  });
 }
 function todayStr(){
   const d = new Date();
@@ -818,7 +878,7 @@ function openAgentTicketsModal(agent){
                     <td><span class="type-pill" style="color:${tMeta.color};background:${tMeta.bg};border-color:${tMeta.color}">${icon(tMeta.icon)} ${esc(typeLabel)}</span></td>
                     <td><span class="badge" style="background:${pMeta.bg};color:${pMeta.color}">${pMeta.label}</span></td>
                     <td>${fmtDate(it.date)}</td>
-                    <td class="desc-cell" title="${esc(it.notes||'')}">${it.notes ? esc(it.notes) : '—'}</td>
+                    <td class="desc-cell">${noteButton(it)}</td>
                   </tr>`;
                 }).join('')}
               </tbody>
@@ -839,6 +899,7 @@ function openAgentTicketsModal(agent){
     const a = agentById(btn.dataset.photoAgent);
     if(a) btn.onclick = ()=> openPhotoLightbox(a);
   });
+  bindNoteButtons(document);
 }
 
 /* ---------------- PHOTO LIGHTBOX ---------------- */
@@ -1126,7 +1187,9 @@ function openAgentForm(existing=null){
   };
 }
 
-function openConfirm({ title, message, confirmLabel, danger=true, onConfirm }){
+const DELETE_CONFIRM_WORD = 'DELETE';
+
+function openConfirm({ title, message, confirmLabel, danger=true, onConfirm, requirePassword=true }){
   openModal(`
     <div class="modal confirm">
       <div class="modal-body" style="padding-top:22px;">
@@ -1135,14 +1198,34 @@ function openConfirm({ title, message, confirmLabel, danger=true, onConfirm }){
           <h3 style="font-family:var(--font-mono); font-size:15px; margin-bottom:8px;">${esc(title)}</h3>
           <p>${message}</p>
         </div>
+        ${requirePassword ? `
+        <div class="field" style="margin-top:2px;">
+          <label>Type <span style="color:var(--danger)">${DELETE_CONFIRM_WORD}</span> to confirm</label>
+          <input type="password" id="confirm-password" placeholder="Enter Password" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <div class="field-hint">Masked on purpose — only type this if you know what you're doing.</div>
+        </div>` : ''}
       </div>
       <div class="modal-foot">
         <button class="btn btn-ghost" data-close-modal>Cancel</button>
-        <button class="btn ${danger?'btn-danger':'btn-primary'}" id="confirm-go">${esc(confirmLabel)}</button>
+        <button class="btn ${danger?'btn-danger':'btn-primary'}" id="confirm-go" ${requirePassword?'disabled':''}>${esc(confirmLabel)}</button>
       </div>
     </div>
   `);
-  document.getElementById('confirm-go').onclick = async ()=>{
+  const goBtn = document.getElementById('confirm-go');
+  let pwInput = null;
+  if(requirePassword){
+    pwInput = document.getElementById('confirm-password');
+    pwInput.focus();
+    pwInput.oninput = ()=>{ goBtn.disabled = pwInput.value !== DELETE_CONFIRM_WORD; };
+    pwInput.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter' && pwInput.value === DELETE_CONFIRM_WORD) goBtn.click();
+    });
+  }
+  goBtn.onclick = async ()=>{
+    if(requirePassword && pwInput.value !== DELETE_CONFIRM_WORD){
+      toast(`Type ${DELETE_CONFIRM_WORD} to confirm.`, 'error');
+      return;
+    }
     const btn = document.getElementById('confirm-go');
     btn.disabled = true; btn.textContent='Working…';
     try{ await onConfirm(); closeModal(); }
@@ -1162,7 +1245,7 @@ function ticketRow(it, {withActions=true} = {}){
     <td><span class="badge" style="background:${pMeta.bg}; color:${pMeta.color}">${pMeta.label}</span></td>
     <td>${assigneeChip(it.assignedAgentId)}</td>
     <td>${fmtDate(it.date)}</td>
-    <td class="desc-cell" title="${esc(it.notes||'')}">${it.notes ? esc(it.notes) : '—'}</td>
+     <td class="desc-cell">${noteButton(it)}</td>
     ${withActions ? `<td>
       <div style="display:flex; align-items:center; gap:4px;">
         <button class="icon-btn edit" title="Edit ticket" data-ticket-act="edit" data-ticket-id="${it.id}">${icon('edit')}</button>
@@ -1759,15 +1842,15 @@ function renderAnalytics(){
     <div class="date-range-bar">
       <div class="date-range-field">
         <label>${icon('calendar')} Start</label>
-        <input type="date" id="analytics-date-start" value="${state.analyticsStartDate || ''}">
+        <input type="date" id="analytics-date-start" lang="en-US" aria-label="Analytics start date" value="${state.analyticsStartDate || ''}">
       </div>
       <span class="date-range-sep">→</span>
       <div class="date-range-field">
         <label>End</label>
-        <input type="date" id="analytics-date-end" value="${state.analyticsEndDate || ''}">
+        <input type="date" id="analytics-date-end" lang="en-US" aria-label="Analytics end date" value="${state.analyticsEndDate || ''}">
       </div>
       ${rangeActive ? `
-        <span class="date-range-active">${icon('zap')} Filtering ${state.analyticsStartDate || '…'} to ${state.analyticsEndDate || '…'}</span>
+        <span class="date-range-active">${icon('zap')} Filtering ${analyticsDateDisplay(state.analyticsStartDate) || '…'} to ${analyticsDateDisplay(state.analyticsEndDate) || '…'}</span>
         <button class="btn btn-ghost btn-sm" id="analytics-date-clear">${icon('x')} Clear</button>
       ` : ''}
     </div>
@@ -1807,7 +1890,7 @@ function renderAnalytics(){
           </div>
         </div>
         <div style="font-size:11.5px; color:var(--text-tertiary); margin:-10px 0 16px;">Ranked by total tickets handled</div>
-        ${perfRows.length ? perfRows.map((r,i)=>{
+        ${perfRows.length ? `<div class="perf-list">${perfRows.map((r,i)=>{
           const pct = (r.count/maxPerf*100);
           const color = r.agent ? colorForId(r.agent.id) : 'var(--text-tertiary)';
           const name = r.agent ? esc(r.agent.name) : 'Unassigned';
@@ -1823,7 +1906,7 @@ function renderAnalytics(){
               <div class="perf-track"><div class="perf-fill" style="width:${Math.max(pct,2).toFixed(1)}%; background:${color}"></div></div>
             </div>
           </div>`;
-        }).join('') : `<div class="cmdk-empty" style="padding:30px 0;">No assigned tickets yet.</div>`}
+        }).join('')}</div>` : `<div class="cmdk-empty" style="padding:30px 0;">No assigned tickets yet.</div>`}
       </div>
     </div>
 
@@ -1969,6 +2052,7 @@ function render(){
   bindTicketActions(root);
   bindAgentActions(root);
   bindViewActions(root);
+  bindNoteButtons(root);
 }
 
 function bindViewActions(root){
