@@ -1160,6 +1160,13 @@ function openTicketForm(existing=null){
       toast('Please fill in a title and date.', 'error');
       return;
     }
+    const isDuplicateTitle = state.tickets.some(t=>
+      t.title.trim().toLowerCase() === title.toLowerCase() && (!isEdit || t.id !== existing.id)
+    );
+    if(isDuplicateTitle){
+      toast('This ticket is already added. Please use a different title.', 'error');
+      return;
+    }
     if(!assignedAgentId || !agentById(assignedAgentId)){
       toast(state.agents.length ? 'Please choose an agent before saving the ticket.' : 'Create an agent first, then add the ticket.', 'error');
       return;
@@ -1692,12 +1699,12 @@ function exportAgentPerformanceCSV(rows){
   toast('Agent performance exported (CSV).', 'success');
 }
 
-function getLast6MonthsData(){
+function getCalendarYearMonthsData(){
   const months = [];
-  const now = new Date();
-  for(let i=5;i>=0;i--){
-    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
-    months.push({ key:`${d.getFullYear()}-${d.getMonth()}`, label:d.toLocaleDateString('en-US',{month:'short'}), count:0 });
+  const year = new Date().getFullYear();
+  for(let m=0;m<12;m++){
+    const d = new Date(year, m, 1);
+    months.push({ key:`${year}-${m}`, label:d.toLocaleDateString('en-US',{month:'short'}), count:0 });
   }
   state.tickets.forEach(it=>{
     if(!it.date) return;
@@ -1736,23 +1743,23 @@ function getRangeMonthsData(){
   return months;
 }
 function isDateRangeActive(){ return !!(state.analyticsStartDate || state.analyticsEndDate); }
-function getMonthsChartData(){ return isDateRangeActive() ? getRangeMonthsData() : getLast6MonthsData(); }
+function getMonthsChartData(){ return isDateRangeActive() ? getRangeMonthsData() : getCalendarYearMonthsData(); }
 
 function exportMonthsChartPDF(months){
   if(!window.jspdf){ toast('PDF library failed to load. Check your connection.', 'error'); return; }
   const { jsPDF } = window.jspdf;
   const docPdf = new jsPDF({ unit:'pt', format:'a4' });
 
-  const title = isDateRangeActive() ? 'Tickets — Selected Date Range' : 'Tickets — Last 6 Months';
+  const title = isDateRangeActive() ? 'Tickets — Selected Date Range' : `Tickets — ${new Date().getFullYear()}`;
   docPdf.setFont('helvetica','bold'); docPdf.setFontSize(16); docPdf.setTextColor(20,20,20);
   docPdf.text(title, 40, 50);
   docPdf.setFont('helvetica','normal'); docPdf.setFontSize(10); docPdf.setTextColor(120,120,120);
   const rangeText = isDateRangeActive()
     ? `Date range: ${state.analyticsStartDate || '…'} to ${state.analyticsEndDate || '…'}`
-    : 'Last 6 calendar months';
+    : `January – December ${new Date().getFullYear()}`;
   docPdf.text(`${rangeText} • Generated ${new Date().toLocaleString()}`, 40, 68);
 
-  const chartX = 60, baseline = 260, chartHeight = 160, colWidth = 60, gap = 30;
+  const chartX = 60, baseline = 260, chartHeight = 160, colWidth = 36, gap = 16;
   const maxCount = Math.max(1, ...months.map(m=>m.count));
   const accent = hexToRgb('#6f6bff');
 
@@ -1765,10 +1772,10 @@ function exportMonthsChartPDF(months){
     const y = baseline - barHeight;
     docPdf.setFillColor(accent.r, accent.g, accent.b);
     docPdf.roundedRect(x, y, colWidth, Math.max(barHeight,2), 3, 3, 'F');
-    docPdf.setFont('helvetica','bold'); docPdf.setFontSize(10); docPdf.setTextColor(60,60,60);
-    docPdf.text(String(m.count), x+colWidth/2, y-8, { align:'center' });
-    docPdf.setFont('helvetica','normal'); docPdf.setTextColor(120,120,120);
-    docPdf.text(m.label, x+colWidth/2, baseline+18, { align:'center' });
+    docPdf.setFont('helvetica','bold'); docPdf.setFontSize(9); docPdf.setTextColor(60,60,60);
+    docPdf.text(String(m.count), x+colWidth/2, y-6, { align:'center' });
+    docPdf.setFont('helvetica','normal'); docPdf.setFontSize(8); docPdf.setTextColor(120,120,120);
+    docPdf.text(m.label, x+colWidth/2, baseline+16, { align:'center' });
   });
 
   docPdf.save(`tickets-chart-${dateRangeLabel()}.pdf`);
@@ -2025,7 +2032,7 @@ function renderAnalytics(){
 
     <div class="panel">
       <div class="panel-title-row" style="flex-wrap:wrap; gap:10px;">
-        <div class="panel-title">${icon('clock')} ${rangeActive ? 'Tickets — Selected Date Range' : 'Tickets — Last 6 Months'}</div>
+        <div class="panel-title">${icon('clock')} ${rangeActive ? 'Tickets — Selected Date Range' : `Tickets — ${new Date().getFullYear()}`}</div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <div class="chart-type-tabs" id="chart-type-tabs">
             <button class="chart-tab ${state.chartType==='bar'?'active':''}" data-chart-type="bar">
