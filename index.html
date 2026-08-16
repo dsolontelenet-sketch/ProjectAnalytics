@@ -764,9 +764,7 @@ function fmtDate(v){
   const yyyy = d.getUTCFullYear();
   return mm + '/' + dd + '/' + yyyy;
 }
-function analyticsDateDisplay(v){
-  return v ? fmtDate(v) : '';
-}
+function analyticsDateDisplay(v){ return v ? fmtDate(v) : ''; }
 function parseAnalyticsDateInput(value){
   const raw = value.trim();
   if(!raw) return '';
@@ -1488,16 +1486,25 @@ function openEditTypeModal(typeData){
       toast('This type already exists.', 'error');
       return;
     }
-    try{
-      await updateCustomType(typeData.id, newName);
-      const ticketsToUpdate = state.tickets.filter(t=> (t.type||'').trim() === typeData.name);
-      await Promise.all(ticketsToUpdate.map(t=> updateTicket(t.id, { type: newName })));
-      toast('Type updated!', 'success');
-      closeModal();
-    }catch(err){
-      console.error(err);
-      toast('Could not update type: ' + (err.message||''), 'error');
-    }
+    // Close the edit modal first
+    closeModal();
+    // Show confirmation dialog
+    openConfirm({
+      title:'Are you sure?',
+      message:`You are about to edit <b>${esc(typeData.name)}</b> to <b>${esc(newName)}</b>. All tickets using this type will be updated. Do you want to continue?`,
+      confirmLabel:'Yes, Edit Type', cancelLabel:'No, Go Back', danger:false, requirePassword:false,
+      onConfirm: async()=>{
+        try{
+          await updateCustomType(typeData.id, newName);
+          const ticketsToUpdate = state.tickets.filter(t=> (t.type||'').trim() === typeData.name);
+          await Promise.all(ticketsToUpdate.map(t=> updateTicket(t.id, { type: newName })));
+          toast('Type updated!', 'success');
+        }catch(err){
+          console.error(err);
+          toast('Could not update type: ' + (err.message||''), 'error');
+        }
+      }
+    });
   };
 }
 
@@ -1644,7 +1651,6 @@ function renderTickets(){
   allTypes.forEach(t=>{ counts[t] = state.tickets.filter(it=> (it.type||'').trim()===t).length; });
   const tabs = [['all','All'], ...allTypes.map(t=>[t,t]), ['unassigned','Unassigned']];
 
-  // Pagination
   const totalItems = list.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / state.ticketsPerPage));
   if(state.ticketsPage > totalPages) state.ticketsPage = totalPages;
@@ -2457,7 +2463,6 @@ function renderReports(){
   const list = filterReportsTickets(allTickets);
   const q = state.reportsSearch;
 
-  // Pagination for reports
   const totalItems = list.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / state.ticketsPerPage));
   if(state.reportsPage > totalPages) state.reportsPage = totalPages;
