@@ -698,10 +698,11 @@ const PRIORITY_META = {
   critical: { label:'4',        color:'var(--danger)',        bg:'rgba(245,85,108,.14)' },
   standard: { label:'Standard', color:'var(--accent-2)',      bg:'rgba(34,211,238,.13)' },
   urgent:   { label:'Urgent',   color:'var(--danger)',        bg:'rgba(245,85,108,.14)' },
+  technical:{ label:'Technical',color:'#a78bfa',              bg:'rgba(167,139,250,.14)' },
 };
 
 // Priority options per ticket type
-const INQUIRY_PRIORITIES = ['standard','urgent'];
+const INQUIRY_PRIORITIES = ['standard','urgent','technical'];
 const DEFAULT_PRIORITIES = ['low','medium','high','critical'];
 function getPriorityOptionsForType(typeVal, selectedPriority){
   const isInquiry = typeVal.trim().toLowerCase() === 'inquiry';
