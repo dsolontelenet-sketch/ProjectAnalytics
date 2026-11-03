@@ -705,6 +705,54 @@ const state = {
   reportsPage: 1,
 };
 
+/* ---------------- LOCAL CACHE FOR INSTANT LOAD ---------------- */
+const CACHE_KEY = 'pa_state_cache';
+
+function saveCache() {
+  try {
+    const cacheData = {
+      firestoreTickets: state.firestoreTickets,
+      rtdbTickets: state.rtdbTickets,
+      agents: state.agents,
+      customTypesData: state.customTypesData,
+      customTypes: state.customTypes,
+      firestoreLoaded: true,
+      rtdbLoaded: true,
+      agentsLoaded: true,
+      customTypesLoaded: true
+    };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
+  } catch (e) {
+    console.warn('Could not save cache', e);
+  }
+}
+
+function loadCache() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return false;
+    const cacheData = JSON.parse(raw);
+    
+    state.firestoreTickets = cacheData.firestoreTickets || [];
+    state.rtdbTickets = cacheData.rtdbTickets || [];
+    state.agents = cacheData.agents || [];
+    state.customTypesData = cacheData.customTypesData || [];
+    state.customTypes = cacheData.customTypes || [];
+    
+    state.firestoreLoaded = true;
+    state.rtdbLoaded = true;
+    state.agentsLoaded = true;
+    state.customTypesLoaded = true;
+    
+    mergeTickets(); 
+    return true;
+  } catch (e) {
+    console.warn('Could not load cache', e);
+    return false;
+  }
+}
+window.addEventListener('beforeunload', saveCache);
+
 const NAV = [
   { id:'dashboard', label:'Dashboard', icon:'grid' },
   { id:'tickets', label:'Tickets', icon:'tag' },
@@ -2944,6 +2992,7 @@ onSnapshot(query(collection(db,'tickets'), orderBy('date','desc')), (snap)=>{
   mergeTickets();
   updateConnLabel();
   render();
+  saveCache();
 }, (err)=>{
   console.error("Firestore Error:", err);
   state.firestoreLoaded = true;
@@ -2966,6 +3015,7 @@ onValue(ref(rtdb, 'tickets'), (snap)=>{
   mergeTickets();
   updateConnLabel();
   render();
+  saveCache();
 }, (err)=>{
   console.error("RTDB Error:", err);
   state.rtdbLoaded = true;
@@ -2979,6 +3029,7 @@ onSnapshot(collection(db,'agents'), (snap)=>{
   state.agentsLoaded = true;
   updateConnLabel();
   render();
+  saveCache();
 }, (err)=>{
   console.error(err);
   state.agentsLoaded = true;
@@ -2992,12 +3043,14 @@ onSnapshot(collection(db,'ticketTypes'), (snap)=>{
   state.customTypesLoaded = true;
   updateConnLabel();
   render();
+  saveCache();
 }, (err)=>{
   console.error(err);
   state.customTypesLoaded = true;
   document.getElementById('conn-label').textContent = 'offline';
 });
 
+loadCache();
 render();
 </script>
 </body>
