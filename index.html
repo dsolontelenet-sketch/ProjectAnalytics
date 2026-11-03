@@ -213,6 +213,13 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
     text-transform:uppercase; letter-spacing:.5px; color:var(--accent-2); background:rgba(34,211,238,.12);
     padding:3px 8px; border-radius:20px; white-space:nowrap; flex-shrink:0; width:fit-content;
   }
+  .readonly-pill{
+    display:inline-flex; align-items:center; gap:4px;
+    font-family:var(--font-mono); font-size:9.5px; font-weight:700; letter-spacing:.4px; text-transform:uppercase;
+    padding:2px 7px; border-radius:20px; background:rgba(137,146,166,.14); color:var(--text-tertiary);
+    border:1px solid var(--border); white-space:nowrap;
+  }
+  .readonly-pill .icon{width:10px; height:10px;}
 
   .tabs{display:flex; align-items:center; gap:4px; background:var(--surface); border:1px solid var(--border); border-radius:9px; padding:4px; width:fit-content; margin-bottom:20px; flex-wrap:wrap;}
   .tab{padding:7px 14px; border-radius:6px; font-size:12.5px; font-weight:600; color:var(--text-tertiary); background:transparent; border:none; font-family:var(--font-mono); transition:all var(--transition);}
@@ -469,6 +476,8 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   tbody td{padding:13px 16px; border-bottom:1px solid var(--border-soft); color:var(--text-secondary); vertical-align:middle;}
   tbody tr:last-child td{border-bottom:none;}
   tbody tr:hover{background:var(--surface-hover);}
+  tbody tr.row-readonly{background:rgba(137,146,166,.03);}
+  tbody tr.row-readonly:hover{background:rgba(137,146,166,.06);}
   td.name-cell{color:var(--text-primary); font-weight:600;}
   td.desc-cell{max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text-tertiary);}
 
@@ -509,6 +518,11 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   .pagination-btn:hover:not(.active):not(:disabled){background:var(--surface-hover); color:var(--text-primary);}
   .pagination-btn.active{background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:0 4px 12px -2px rgba(111,107,255,.5);}
   .pagination-btn:disabled{opacity:.4; cursor:not-allowed;}
+  .pagination-ellipsis{
+    display:inline-flex; align-items:center; justify-content:center;
+    min-width:32px; height:32px; font-size:12.5px; color:var(--text-tertiary);
+    font-family:var(--font-mono);
+  }
 
   #toast-root{position:fixed; bottom:22px; right:22px; display:flex; flex-direction:column; gap:10px; z-index:300;}
   .toast{
@@ -618,8 +632,11 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore, collection, addDoc, doc, updateDoc, deleteDoc,
-  onSnapshot, serverTimestamp, query, where, orderBy, setDoc, getDoc
+  onSnapshot, serverTimestamp, query, orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { 
+  getDatabase, ref, push, set, update as rtdbUpdate, remove, onValue 
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCB71bM-oVA-kxi9miO55pmpU2-N3pbCUo",
@@ -628,10 +645,13 @@ const firebaseConfig = {
   storageBucket: "apicat-cf3ed.firebasestorage.app",
   messagingSenderId: "230026386638",
   appId: "1:230026386638:web:c49cbb01d012daba44c49f",
-  measurementId: "G-4VET09Q391"
+  measurementId: "G-4VET09Q391",
+  databaseURL: "https://apicat-cf3ed-default-rtdb.firebaseio.com"
 };
+
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
+const rtdb = getDatabase(fbApp);
 
 const ICONS = {
   grid:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/>',
@@ -660,14 +680,17 @@ const ICONS = {
   user:'<circle cx="12" cy="8" r="4"/><path d="M4 21v-1a8 8 0 0 1 16 0v1"/>',
   trophy:'<path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4a2 2 0 0 0 2 4"/><path d="M17 6h3a2 2 0 0 1-2 4"/>',
   expand:'<path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/>',
+  lock:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
 };
 function icon(name, cls=''){ return `<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||''}</svg>`; }
 
 const state = {
   route: 'dashboard',
-  tickets: [], ticketsLoaded: false,
+  tickets: [], 
+  firestoreTickets: [],
+  rtdbTickets: [],
+  firestoreLoaded: false, rtdbLoaded: false,
   agents: [], agentsLoaded: false,
-  agentPhotos: {}, agentPhotosLoaded: false,
   customTypes: [], customTypesData: [], customTypesLoaded: false,
   filter: 'all',
   search: '',
@@ -765,22 +788,6 @@ function fmtDate(v){
   return mm + '/' + dd + '/' + yyyy;
 }
 function analyticsDateDisplay(v){ return v ? fmtDate(v) : ''; }
-function parseAnalyticsDateInput(value){
-  const raw = value.trim();
-  if(!raw) return '';
-  const match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if(!match) return null;
-  const [, mm, dd, yyyy] = match;
-  const date = new Date(Date.UTC(Number(yyyy), Number(mm)-1, Number(dd)));
-  if(date.getUTCFullYear() !== Number(yyyy) || date.getUTCMonth() !== Number(mm)-1 || date.getUTCDate() !== Number(dd)) return null;
-  return `${yyyy}-${mm}-${dd}`;
-}
-function formatAnalyticsDateInput(value){
-  const digits = value.replace(/\D/g,'').slice(0,8);
-  if(digits.length <= 2) return digits;
-  if(digits.length <= 4) return `${digits.slice(0,2)}/${digits.slice(2)}`;
-  return `${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`;
-}
 function noteButton(it){
   return it.notes
     ? `<button class="note-view-btn" type="button" data-view-note="${esc(it.id)}">${icon('file')} View note</button>`
@@ -878,9 +885,10 @@ function fileToResizedDataUrl(file, maxDim = MAX_PHOTO_DIM){
 
 /* ---------------- AGENTS: lookups & rendering ---------------- */
 function agentById(id){ return state.agents.find(a=>a.id===id) || null; }
+// PHOTO comes from Firestore (`avatarUrl`), which stores a base64 data URL.
 function agentPhotoSrc(agent){
   if(!agent) return '';
-  return state.agentPhotos[agent.id] || agent.avatarUrl || '';
+  return agent.avatarUrl || '';
 }
 function agentAvatar(agent, size='md'){
   if(!agent){
@@ -905,7 +913,7 @@ function assigneeChip(agentId){
 function openAgentTicketsModal(agent){
   const agentTickets = state.tickets
     .filter(it=> it.assignedAgentId === agent.id)
-    .sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+    .sort((a,b)=> (b.createdAt?.seconds||b.createdAt||0)-(a.createdAt?.seconds||a.createdAt||0));
   const src = agentPhotoSrc(agent);
   const avatarEl = src
     ? `<button class="avatar-btn" title="View photo" data-photo-agent="${agent.id}" style="margin-right:0">${agentAvatar(agent,'sm')}</button>`
@@ -1003,22 +1011,46 @@ function openModal(html, opts={}){
 }
 function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
 
-/* ---------------- FIRESTORE: TICKETS ---------------- */
+/* ---------------- FIREBASE MUTATIONS ---------------- */
+
+/* -------------------
+   TICKETS
+   - New tickets  -> RTDB only
+   - Edits/deletes -> RTDB only (Firestore tickets are read-only reference)
+------------------- */
+function isRtdbTicket(id){ return typeof id === 'string' && id.startsWith('-'); }
+
 async function createTicket(data){
-  await addDoc(collection(db,'tickets'), {
+  const newRtdbRef = push(ref(rtdb, 'tickets'));
+  await set(newRtdbRef, {
     title: data.title,
     type: data.type || '',
     date: data.date,
     priority: data.priority,
     notes: data.notes || '',
     assignedAgentId: data.assignedAgentId || '',
-    createdAt: serverTimestamp(),
+    createdAt: Date.now()
   });
 }
-async function updateTicket(id, data){ await updateDoc(doc(db,'tickets', id), data); }
-async function deleteTicketDoc(id){ await deleteDoc(doc(db,'tickets', id)); }
 
-/* ---------------- FIRESTORE: AGENTS ---------------- */
+async function updateTicket(id, data){
+  if(!isRtdbTicket(id)){
+    throw new Error('This ticket is from the Firestore reference archive and is read-only.');
+  }
+  await rtdbUpdate(ref(rtdb, 'tickets/' + id), data);
+}
+
+async function deleteTicketDoc(id){
+  if(!isRtdbTicket(id)){
+    throw new Error('This ticket is from the Firestore reference archive and cannot be deleted here.');
+  }
+  await remove(ref(rtdb, 'tickets/' + id));
+}
+
+/* -------------------
+   AGENTS
+   - ALL agent data (name, role, avatarUrl/photo) -> Firestore
+------------------- */
 async function createAgent(data){
   const docRef = await addDoc(collection(db,'agents'), {
     name: data.name,
@@ -1031,7 +1063,9 @@ async function createAgent(data){
 async function updateAgent(id, data){ await updateDoc(doc(db,'agents', id), data); }
 async function deleteAgentDoc(id){ await deleteDoc(doc(db,'agents', id)); }
 
-/* ---------------- FIRESTORE: CUSTOM TYPES ---------------- */
+/* -------------------
+   CUSTOM TYPES -> Firestore
+------------------- */
 async function createCustomType(name){
   await addDoc(collection(db,'ticketTypes'), {
     name: name,
@@ -1045,22 +1079,7 @@ async function deleteCustomType(id){
   await deleteDoc(doc(db,'ticketTypes', id));
 }
 
-/* ---------------- REALTIME DATABASE: AGENT PHOTOS ---------------- */
-async function saveAgentPhoto(agentId, dataUrl){
-  await setDoc(doc(db, 'agentPhotos', agentId), { agentId, dataUrl });
-}
-async function deleteAgentPhoto(agentId){
-  await deleteDoc(doc(db, 'agentPhotos', agentId));
-}
-
 /* ---------------- FORMS ---------------- */
-function agentOptionsHtml(selectedId){
-  const opts = [];
-  [...state.agents].sort((a,b)=> a.name.localeCompare(b.name)).forEach(a=>{
-    opts.push(`<option value="${a.id}" ${selectedId===a.id?'selected':''}>${esc(a.name)}${a.role?' · '+esc(a.role):''}</option>`);
-  });
-  return opts.join('');
-}
 function agentPickerValueHtml(selectedId){
   const agent = selectedId ? agentById(selectedId) : null;
   if(!agent){
@@ -1120,6 +1139,11 @@ function getTicketTypeOptions(selectedType){
 }
 
 function openTicketForm(existing=null){
+  // Guard: Firestore tickets are read-only reference — never open edit form
+  if(existing && !isRtdbTicket(existing.id)){
+    toast('This ticket is from the Firestore reference archive and is read-only.', 'info');
+    return;
+  }
   const isEdit = !!existing;
   const it = existing || { title:'', type:'', date: todayStr(), priority:'low', notes:'', assignedAgentId:'' };
   openModal(`
@@ -1264,7 +1288,7 @@ function openTicketForm(existing=null){
       toast('Please select a type.', 'error');
       return;
     }
-    const isDuplicateTitle = state.tickets.some(t=>
+    const isDuplicateTitle = state.rtdbTickets.some(t=>
       t.title.trim().toLowerCase() === title.toLowerCase() && (!isEdit || t.id !== existing.id)
     );
     if(isDuplicateTitle){
@@ -1321,7 +1345,7 @@ function openAgentForm(existing=null){
                 </label>
                 <button type="button" class="btn btn-ghost btn-sm" id="a-photo-remove" ${existingPhotoSrc? '' : 'style="display:none"'}>${icon('trash')} Remove</button>
               </div>
-              <div class="field-hint">JPG/PNG/etc, up to 8MB. Stored in the Realtime Database and resized automatically.</div>
+              <div class="field-hint">JPG/PNG/etc, up to 8MB. Stored in Firestore (<b>avatarUrl</b> field) and resized automatically.</div>
             </div>
           </div>
         </div>
@@ -1375,16 +1399,18 @@ function openAgentForm(existing=null){
     const btn = document.getElementById('a-submit');
     btn.disabled = true; btn.textContent = 'Saving…';
     try{
-      let agentId = isEdit ? existing.id : null;
+      // All agent fields, INCLUDING the photo, are written to Firestore.
       if(isEdit){
-        await updateAgent(existing.id, { name, role });
+        const patch = { name, role };
+        if(pendingPhoto === 'REMOVE')      patch.avatarUrl = '';
+        else if(pendingPhoto)              patch.avatarUrl = pendingPhoto;
+        await updateAgent(existing.id, patch);
       } else {
-        agentId = await createAgent({ name, role });
-      }
-      if(pendingPhoto && pendingPhoto !== 'REMOVE'){
-        await saveAgentPhoto(agentId, pendingPhoto);
-      } else if(pendingPhoto === 'REMOVE'){
-        await deleteAgentPhoto(agentId);
+        await createAgent({
+          name,
+          role,
+          avatarUrl: (pendingPhoto && pendingPhoto !== 'REMOVE') ? pendingPhoto : ''
+        });
       }
       toast(isEdit ? 'Agent updated.' : 'Agent added.', 'success');
       closeModal();
@@ -1486,18 +1512,16 @@ function openEditTypeModal(typeData){
       toast('This type already exists.', 'error');
       return;
     }
-    // Close the edit modal first
     closeModal();
-    // Show confirmation dialog
     openConfirm({
       title:'Are you sure?',
-      message:`You are about to edit <b>${esc(typeData.name)}</b> to <b>${esc(newName)}</b>. All tickets using this type will be updated. Do you want to continue?`,
+      message:`You are about to edit <b>${esc(typeData.name)}</b> to <b>${esc(newName)}</b>. Tickets in the live RTDB database using this type will be updated. Firestore reference tickets will remain unchanged.`,
       confirmLabel:'Yes, Edit Type', cancelLabel:'No, Go Back', danger:false, requirePassword:false,
       onConfirm: async()=>{
         try{
           await updateCustomType(typeData.id, newName);
-          const ticketsToUpdate = state.tickets.filter(t=> (t.type||'').trim() === typeData.name);
-          await Promise.all(ticketsToUpdate.map(t=> updateTicket(t.id, { type: newName })));
+          const liveTicketsToUpdate = state.rtdbTickets.filter(t=> (t.type||'').trim() === typeData.name);
+          await Promise.all(liveTicketsToUpdate.map(t=> updateTicket(t.id, { type: newName })));
           toast('Type updated!', 'success');
         }catch(err){
           console.error(err);
@@ -1509,9 +1533,9 @@ function openEditTypeModal(typeData){
 }
 
 function openDeleteTypeModal(typeData){
-  const ticketsUsingType = state.tickets.filter(t=> (t.type||'').trim() === typeData.name);
-  if(ticketsUsingType.length > 0){
-    toast(`You can't delete this type because there ${ticketsUsingType.length === 1 ? 'is 1 ticket' : `are ${ticketsUsingType.length} tickets`} using this type. Delete or reassign those tickets first.`, 'error');
+  const liveTicketsUsingType = state.rtdbTickets.filter(t=> (t.type||'').trim() === typeData.name);
+  if(liveTicketsUsingType.length > 0){
+    toast(`You can't delete this type because there ${liveTicketsUsingType.length === 1 ? 'is 1 live ticket' : `are ${liveTicketsUsingType.length} live tickets`} using this type. Delete or reassign those tickets first.`, 'error');
     return;
   }
   
@@ -1538,20 +1562,30 @@ function ticketRow(it, {withActions=true} = {}){
   const pMeta = PRIORITY_META[it.priority] || PRIORITY_META.medium;
   const tMeta = it.type && it.type.trim() ? typeMetaFor(it.type.trim()) : { icon:'file', color:'var(--text-tertiary)', bg:'var(--surface-2)' };
   const typeLabel = it.type && it.type.trim() ? it.type.trim() : 'Uncategorized';
+  const isReadOnly = !isRtdbTicket(it.id);
+  const rowClass = isReadOnly ? 'row-readonly' : '';
+  const titleCell = isReadOnly
+    ? `<td class="name-cell" style="display:flex;align-items:center;gap:8px;">
+         ${esc(it.title)}
+         <span class="readonly-pill" title="Reference archive ticket (Firestore). Read-only.">${icon('lock')} Read-only</span>
+       </td>`
+    : `<td class="name-cell">${esc(it.title)}</td>`;
   return `
-  <tr>
-    <td class="name-cell">${esc(it.title)}</td>
+  <tr class="${rowClass}">
+    ${titleCell}
     <td><span class="type-pill" style="color:${tMeta.color}; background:${tMeta.bg};">${esc(typeLabel)}</span></td>
     <td><span class="badge" style="background:${pMeta.bg}; color:${pMeta.color}">${pMeta.label}</span></td>
     <td>${assigneeChip(it.assignedAgentId)}</td>
     <td>${fmtDate(it.date)}</td>
-     <td class="desc-cell">${noteButton(it)}</td>
-    ${withActions ? `<td>
-      <div style="display:flex; align-items:center; gap:4px;">
-        <button class="icon-btn edit" title="Edit ticket" data-ticket-act="edit" data-ticket-id="${it.id}">${icon('edit')}</button>
-        <button class="icon-btn danger" title="Delete ticket" data-ticket-act="delete" data-ticket-id="${it.id}">${icon('trash')}</button>
-      </div>
-    </td>` : ''}
+    <td class="desc-cell">${noteButton(it)}</td>
+    ${withActions ? `<td>${
+      isReadOnly
+        ? `<div style="font-family:var(--font-mono); font-size:10.5px; color:var(--text-tertiary); display:flex; align-items:center; gap:6px;">${icon('lock')} Reference</div>`
+        : `<div style="display:flex; align-items:center; gap:4px;">
+             <button class="icon-btn edit" title="Edit ticket" data-ticket-act="edit" data-ticket-id="${it.id}">${icon('edit')}</button>
+             <button class="icon-btn danger" title="Delete ticket" data-ticket-act="delete" data-ticket-id="${it.id}">${icon('trash')}</button>
+           </div>`
+    }</td>` : ''}
   </tr>`;
 }
 function ticketsTable(items, {withActions=true} = {}){
@@ -1572,20 +1606,31 @@ function bindTicketActions(root){
     if(!it) return;
     btn.onclick = ()=>{
       const act = btn.dataset.ticketAct;
-      if(act==='edit') openTicketForm(it);
-      else if(act==='delete') openConfirm({
-        title:'Delete this ticket?',
-        message:`This will permanently delete <b>${esc(it.title)}</b>. This cannot be undone.`,
-        confirmLabel:'Delete Ticket', danger:true, requirePassword:true,
-        onConfirm: async()=>{
-          openConfirm({
-            title:'Are you sure?',
-            message:`You are about to permanently delete <b>${esc(it.title)}</b>. Are you absolutely sure?`,
-            confirmLabel:'Yes, Delete', cancelLabel:'No, Go Back', danger:true, requirePassword:false,
-            onConfirm: async()=>{ await deleteTicketDoc(id); toast('Ticket deleted.','info'); }
-          });
+      if(act==='edit'){
+        if(!isRtdbTicket(id)){
+          toast('Reference tickets (Firestore archive) are read-only.', 'info');
+          return;
         }
-      });
+        openTicketForm(it);
+      } else if(act==='delete'){
+        if(!isRtdbTicket(id)){
+          toast('Reference tickets (Firestore archive) cannot be deleted here.', 'info');
+          return;
+        }
+        openConfirm({
+          title:'Delete this ticket?',
+          message:`This will permanently delete <b>${esc(it.title)}</b> from the live database. This cannot be undone.`,
+          confirmLabel:'Delete Ticket', danger:true, requirePassword:true,
+          onConfirm: async()=>{
+            openConfirm({
+              title:'Are you sure?',
+              message:`You are about to permanently delete <b>${esc(it.title)}</b>. Are you absolutely sure?`,
+              confirmLabel:'Yes, Delete', cancelLabel:'No, Go Back', danger:true, requirePassword:false,
+              onConfirm: async()=>{ await deleteTicketDoc(id); toast('Ticket deleted.','info'); }
+            });
+          }
+        });
+      }
     };
   });
 }
@@ -1605,7 +1650,11 @@ function renderDashboard(){
   const allTypes = getAllTicketTypes();
   const counts = { total: state.tickets.length };
   allTypes.forEach(t=>{ counts[t] = state.tickets.filter(it=> (it.type||'').trim()===t).length; });
-  const recent = [...state.tickets].sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).slice(0,6);
+  const recent = [...state.tickets].sort((a,b)=> {
+    const timeA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : (a.createdAt || 0);
+    const timeB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : (b.createdAt || 0);
+    return timeB - timeA;
+  }).slice(0,6);
 
   return `
     <div class="view-header">
@@ -1645,7 +1694,11 @@ function renderTickets(){
   if(state.filter==='unassigned') list = list.filter(it=> !it.assignedAgentId);
   else if(state.filter!=='all') list = list.filter(it=> (it.type||'').trim()===state.filter || (state.filter==='Uncategorized' && !((it.type||'').trim())));
   if(q) list = list.filter(it=> it.title.toLowerCase().includes(q) || (it.type||'').toLowerCase().includes(q) || (it.notes||'').toLowerCase().includes(q));
-  list = [...list].sort((a,b)=> (b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));
+  list = [...list].sort((a,b)=> {
+    const timeA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : (a.createdAt || 0);
+    const timeB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : (b.createdAt || 0);
+    return timeB - timeA;
+  });
 
   const counts = { all: state.tickets.length, unassigned: state.tickets.filter(it=>!it.assignedAgentId).length };
   allTypes.forEach(t=>{ counts[t] = state.tickets.filter(it=> (it.type||'').trim()===t).length; });
@@ -1667,9 +1720,7 @@ function renderTickets(){
         </div>
         <div class="pagination-buttons">
           <button class="pagination-btn" data-page="${state.ticketsPage - 1}" ${state.ticketsPage <= 1 ? 'disabled' : ''}>‹</button>
-          ${Array.from({length: totalPages}, (_, i) => i + 1).map(p => `
-            <button class="pagination-btn ${p === state.ticketsPage ? 'active' : ''}" data-page="${p}">${p}</button>
-          `).join('')}
+          ${generatePagination(totalPages, state.ticketsPage, 'data-page')}
           <button class="pagination-btn" data-page="${state.ticketsPage + 1}" ${state.ticketsPage >= totalPages ? 'disabled' : ''}>›</button>
         </div>
       </div>
@@ -1680,7 +1731,7 @@ function renderTickets(){
     <div class="view-header">
       <div>
         <div class="view-title">Tickets</div>
-        <div class="view-sub">Create, edit and assign every ticket — unlimited.</div>
+        <div class="view-sub">Live tickets are editable. Firestore reference tickets are read-only.</div>
       </div>
       <div style="display:flex; gap:8px;">
         <button class="btn btn-ghost" id="tickets-export-excel">${icon('download')} Excel</button>
@@ -1710,7 +1761,7 @@ function renderTickets(){
 /* ---------------- EXPORT FUNCTIONS ---------------- */
 function exportTicketsToExcel(){
   const list = [...state.tickets];
-  const headers = ['Title','Type','Priority','Assigned To','Date','Notes'];
+  const headers = ['Title','Type','Priority','Assigned To','Date','Notes','Source'];
   const rows = list.map(it=>{
     const agent = agentById(it.assignedAgentId);
     return [
@@ -1719,7 +1770,8 @@ function exportTicketsToExcel(){
       (PRIORITY_META[it.priority]||{}).label || it.priority,
       agent ? agent.name : 'Unassigned',
       it.date || '',
-      it.notes || ''
+      it.notes || '',
+      isRtdbTicket(it.id) ? 'Live (RTDB)' : 'Reference (Firestore)'
     ];
   });
   const wsData = [headers, ...rows];
@@ -1743,8 +1795,8 @@ function exportTicketsToPDF(){
   docPdf.text(`Total: ${list.length} tickets • Generated ${new Date().toLocaleString()}`, 40, 68);
 
   const startX = 40;
-  const colWidths = [180, 100, 80, 120, 80, 200];
-  const headers = ['Title','Type','Priority','Assigned To','Date','Notes'];
+  const colWidths = [170, 100, 80, 120, 80, 170, 90];
+  const headers = ['Title','Type','Priority','Assigned To','Date','Notes','Source'];
   let y = 100;
 
   docPdf.setFont('helvetica','bold'); docPdf.setFontSize(10); docPdf.setTextColor(255,255,255);
@@ -1766,7 +1818,8 @@ function exportTicketsToPDF(){
       (PRIORITY_META[it.priority]||{}).label || it.priority || '',
       agent ? agent.name.substring(0, 25) : 'Unassigned',
       it.date || '',
-      (it.notes || '').substring(0, 50)
+      (it.notes || '').substring(0, 50),
+      isRtdbTicket(it.id) ? 'Live' : 'Reference'
     ];
     rowData.forEach((val, i)=>{
       let x = startX + colWidths.slice(0,i).reduce((a,b)=>a+b,0);
@@ -1786,7 +1839,7 @@ function exportTicketsToPDF(){
 
 function exportReportsToExcel(){
   const list = filterReportsTickets([...state.tickets]);
-  const headers = ['Title','Type','Priority','Assigned To','Date','Notes'];
+  const headers = ['Title','Type','Priority','Assigned To','Date','Notes','Source'];
   const rows = list.map(it=>{
     const agent = agentById(it.assignedAgentId);
     return [
@@ -1795,7 +1848,8 @@ function exportReportsToExcel(){
       (PRIORITY_META[it.priority]||{}).label || it.priority,
       agent ? agent.name : 'Unassigned',
       it.date || '',
-      it.notes || ''
+      it.notes || '',
+      isRtdbTicket(it.id) ? 'Live (RTDB)' : 'Reference (Firestore)'
     ];
   });
   const wsData = [headers, ...rows];
@@ -1819,8 +1873,8 @@ function exportReportsToPDF(){
   docPdf.text(`Total: ${list.length} tickets • Generated ${new Date().toLocaleString()}`, 40, 68);
 
   const startX = 40;
-  const colWidths = [180, 100, 80, 120, 80, 200];
-  const headers = ['Title','Type','Priority','Assigned To','Date','Notes'];
+  const colWidths = [170, 100, 80, 120, 80, 170, 90];
+  const headers = ['Title','Type','Priority','Assigned To','Date','Notes','Source'];
   let y = 100;
 
   docPdf.setFont('helvetica','bold'); docPdf.setFontSize(10); docPdf.setTextColor(255,255,255);
@@ -1842,7 +1896,8 @@ function exportReportsToPDF(){
       (PRIORITY_META[it.priority]||{}).label || it.priority || '',
       agent ? agent.name.substring(0, 25) : 'Unassigned',
       it.date || '',
-      (it.notes || '').substring(0, 50)
+      (it.notes || '').substring(0, 50),
+      isRtdbTicket(it.id) ? 'Live' : 'Reference'
     ];
     rowData.forEach((val, i)=>{
       let x = startX + colWidths.slice(0,i).reduce((a,b)=>a+b,0);
@@ -1928,10 +1983,9 @@ function bindAgentActions(root){
         message:`This will permanently delete <b>${esc(a.name)}</b>. Tickets assigned to them will become unassigned. This cannot be undone.`,
         confirmLabel:'Delete Agent', danger:true,
         onConfirm: async()=>{
-          const assigned = state.tickets.filter(it=> it.assignedAgentId===id);
+          const assigned = state.rtdbTickets.filter(it=> it.assignedAgentId===id);
           await Promise.all(assigned.map(it=> updateTicket(it.id, { assignedAgentId:'' })));
           await deleteAgentDoc(id);
-          await deleteAgentPhoto(id);
           toast('Agent deleted.','info');
         }
       });
@@ -2318,7 +2372,6 @@ function renderAnalytics(){
   const maxPerf = Math.max(1, ...perfRows.map(r=>r.count));
   const filterTabs = getAnalyticsFilterTabs();
   const months = getMonthsChartData();
-  const maxCount = Math.max(1, ...months.map(m=>m.count));
   const rangeActive = isDateRangeActive();
 
   return `
@@ -2479,9 +2532,7 @@ function renderReports(){
         </div>
         <div class="pagination-buttons">
           <button class="pagination-btn reports-page-btn" data-reports-page="${state.reportsPage - 1}" ${state.reportsPage <= 1 ? 'disabled' : ''}>‹</button>
-          ${Array.from({length: totalPages}, (_, i) => i + 1).map(p => `
-            <button class="pagination-btn reports-page-btn ${p === state.reportsPage ? 'active' : ''}" data-reports-page="${p}">${p}</button>
-          `).join('')}
+          ${generatePagination(totalPages, state.reportsPage, 'data-reports-page', 'reports-page-btn')}
           <button class="pagination-btn reports-page-btn" data-reports-page="${state.reportsPage + 1}" ${state.reportsPage >= totalPages ? 'disabled' : ''}>›</button>
         </div>
       </div>
@@ -2492,7 +2543,7 @@ function renderReports(){
     <div class="view-header">
       <div>
         <div class="view-title">Reports</div>
-        <div class="view-sub">Full ledger of every ticket in the workspace, ready to export.</div>
+        <div class="view-sub">Full ledger of every ticket — live and reference.</div>
       </div>
       <div style="display:flex; gap:8px;">
         <button class="btn btn-ghost" id="reports-export-excel">${icon('download')} Excel</button>
@@ -2570,10 +2621,14 @@ function renderSettings(){
         <div class="kv-row"><span>project_id</span><span>${firebaseConfig.projectId}</span></div>
         <div class="kv-row"><span>auth_mode</span><span>none (open workspace)</span></div>
         <div class="kv-row"><span>sync_status</span><span>live</span></div>
+        <div class="kv-row"><span>live_tickets_rtdb</span><span>${state.rtdbTickets.length}</span></div>
+        <div class="kv-row"><span>reference_tickets_fs</span><span>${state.firestoreTickets.length}</span></div>
         <div class="kv-row"><span>total_tickets</span><span>${state.tickets.length}</span></div>
         <div class="kv-row"><span>total_agents</span><span>${state.agents.length}</span></div>
         <div class="kv-row"><span>total_types</span><span>${getAllTicketTypes().length}</span></div>
-        <div class="kv-row"><span>agent_photos_store</span><span>Realtime Database</span></div>
+        <div class="kv-row"><span>agents_store</span><span>Firestore (name, role, photo)</span></div>
+        <div class="kv-row"><span>tickets_store</span><span>Realtime Database (write)</span></div>
+        <div class="kv-row"><span>tickets_reference</span><span>Firestore (read-only)</span></div>
       </div>
     </div>
   `;
@@ -2585,7 +2640,7 @@ function render(){
   document.getElementById('crumb-current').textContent = state.route;
   const root = document.getElementById('view-root');
 
-  if(!state.ticketsLoaded || !state.agentsLoaded || !state.customTypesLoaded){
+  if(!state.firestoreLoaded || !state.rtdbLoaded || !state.agentsLoaded || !state.customTypesLoaded){
     root.innerHTML = `<div class="loader"><div class="spin"></div> Connecting to workspace…</div>`;
     return;
   }
@@ -2636,7 +2691,6 @@ function bindViewActions(root){
   }
   root.querySelectorAll('[data-filter]').forEach(t=>{ t.onclick = ()=>{ state.filter = t.dataset.filter; state.ticketsPage = 1; render(); }; });
 
-  // Pagination buttons (Tickets)
   root.querySelectorAll('.pagination-btn:not(.reports-page-btn)').forEach(btn=>{
     btn.onclick = ()=>{
       if(btn.disabled) return;
@@ -2646,7 +2700,6 @@ function bindViewActions(root){
     };
   });
 
-  // Pagination buttons (Reports)
   root.querySelectorAll('.reports-page-btn').forEach(btn=>{
     btn.onclick = ()=>{
       if(btn.disabled) return;
@@ -2656,13 +2709,11 @@ function bindViewActions(root){
     };
   });
 
-  // Export buttons - Tickets
   const exportExcelBtn = root.querySelector('#tickets-export-excel');
   if(exportExcelBtn) exportExcelBtn.onclick = exportTicketsToExcel;
   const exportPdfBtn = root.querySelector('#tickets-export-pdf');
   if(exportPdfBtn) exportPdfBtn.onclick = exportTicketsToPDF;
 
-  // Export buttons - Reports
   const reportsExportExcelBtn = root.querySelector('#reports-export-excel');
   if(reportsExportExcelBtn) reportsExportExcelBtn.onclick = exportReportsToExcel;
   const reportsExportPdfBtn = root.querySelector('#reports-export-pdf');
@@ -2721,9 +2772,54 @@ function bindViewActions(root){
   if(themeSwitch) themeSwitch.onclick = ()=>{ state.theme = state.theme==='dark' ? 'light':'dark'; applyTheme(); render(); };
 }
 
+/* ---------------- SMART PAGINATION HELPER ---------------- */
+function generatePagination(totalPages, currentPage, dataAttr, extraClass = '') {
+  let pages = [];
+  const maxVisible = 5; 
+
+  if (totalPages <= maxVisible + 2) {
+    for (let i = 1; i <= totalPages; i++) {
+      pages.push(i);
+    }
+  } else {
+    pages.push(1);
+
+    if (currentPage > 3) {
+      pages.push('...');
+    }
+
+    let start = Math.max(2, currentPage - 1);
+    let end = Math.min(totalPages - 1, currentPage + 1);
+
+    if (currentPage <= 3) {
+      end = 4;
+    }
+    if (currentPage >= totalPages - 2) {
+      start = totalPages - 3;
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+
+    if (currentPage < totalPages - 2) {
+      pages.push('...');
+    }
+
+    pages.push(totalPages);
+  }
+
+  return pages.map(p => {
+    if (p === '...') {
+      return `<span class="pagination-ellipsis">...</span>`;
+    }
+    return `<button class="pagination-btn ${extraClass} ${p === currentPage ? 'active' : ''}" ${dataAttr}="${p}">${p}</button>`;
+  }).join('');
+}
+
 function exportCSV(){
   const list = filterReportsTickets([...state.tickets]);
-  const headers = ['Title','Type','Priority','Assigned To','Date','Notes'];
+  const headers = ['Title','Type','Priority','Assigned To','Date','Notes','Source'];
   const rows = list.map(it=>{
     const agent = agentById(it.assignedAgentId);
     return [
@@ -2732,7 +2828,8 @@ function exportCSV(){
       (PRIORITY_META[it.priority]||{}).label || it.priority,
       agent ? agent.name : 'Unassigned',
       it.date || '',
-      it.notes || ''
+      it.notes || '',
+      isRtdbTicket(it.id) ? 'Live (RTDB)' : 'Reference (Firestore)'
     ];
   });
   const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
@@ -2786,7 +2883,8 @@ function renderCmdkList(q){
     html += `<div class="cmdk-section">Tickets</div>`;
     html += ticketMatches.map(it=>{
       const pMeta = PRIORITY_META[it.priority]||PRIORITY_META.medium;
-      return `<div class="cmdk-item" data-ticket="${it.id}">${icon('tag')} ${esc(it.title)}<span class="badge" style="background:${pMeta.bg}; color:${pMeta.color}">${pMeta.label}</span></div>`;
+      const ro = isRtdbTicket(it.id) ? '' : ` <span class="readonly-pill">${icon('lock')} RO</span>`;
+      return `<div class="cmdk-item" data-ticket="${it.id}">${icon('tag')} ${esc(it.title)}${ro}<span class="badge" style="background:${pMeta.bg}; color:${pMeta.color}">${pMeta.label}</span></div>`;
     }).join('');
   }
   if(agentMatches.length){
@@ -2801,7 +2899,9 @@ function renderCmdkList(q){
   list.querySelectorAll('[data-ticket]').forEach(el=> el.onclick = ()=>{
     const it = state.tickets.find(x=>x.id===el.dataset.ticket);
     closeCmdk();
-    if(it) openTicketForm(it);
+    if(!it) return;
+    if(!isRtdbTicket(it.id)){ toast('Reference tickets (Firestore archive) are read-only.', 'info'); return; }
+    openTicketForm(it);
   });
   list.querySelectorAll('[data-agent]').forEach(el=> el.onclick = ()=>{
     const a = agentById(el.dataset.agent);
@@ -2829,26 +2929,51 @@ document.getElementById('btn-new-agent-top').onclick = ()=> openAgentForm();
 /* ---------------- LIVE SYNC ---------------- */
 function updateConnLabel(){
   const el = document.getElementById('conn-label');
-  el.textContent = (state.ticketsLoaded && state.agentsLoaded && state.customTypesLoaded) ? 'live' : 'syncing';
+  el.textContent = (state.firestoreLoaded && state.rtdbLoaded && state.agentsLoaded && state.customTypesLoaded) ? 'live' : 'syncing';
 }
 
+// Merge: RTDB (writable live) + Firestore (read-only reference)
+function mergeTickets() {
+  state.tickets = [...state.rtdbTickets, ...state.firestoreTickets];
+}
+
+// 1. Firestore tickets — READ ONLY reference archive
 onSnapshot(query(collection(db,'tickets'), orderBy('date','desc')), (snap)=>{
-  state.tickets = snap.docs.map(d=> ({ id:d.id, ...d.data() }));
-  state.ticketsLoaded = true;
+  state.firestoreTickets = snap.docs.map(d=> ({ id:d.id, ...d.data() }));
+  state.firestoreLoaded = true;
+  mergeTickets();
   updateConnLabel();
   render();
 }, (err)=>{
-  console.error(err);
-  state.ticketsLoaded = true;
-  document.getElementById('conn-label').textContent = 'offline';
-  document.getElementById('view-root').innerHTML = `
-    <div class="empty-state">
-      ${icon('alert')}
-      <h3>Couldn't reach Firestore (tickets)</h3>
-      <p>${esc(err.message || 'Check your Firestore security rules allow public reads/writes on the "tickets" collection.')}</p>
-    </div>`;
+  console.error("Firestore Error:", err);
+  state.firestoreLoaded = true;
+  mergeTickets();
+  render();
 });
 
+// 2. RTDB tickets — writable live data
+onValue(ref(rtdb, 'tickets'), (snap)=>{
+  const val = snap.val();
+  if (val) {
+    state.rtdbTickets = Object.keys(val).map(key => ({
+      id: key,
+      ...val[key]
+    })).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+  } else {
+    state.rtdbTickets = [];
+  }
+  state.rtdbLoaded = true;
+  mergeTickets();
+  updateConnLabel();
+  render();
+}, (err)=>{
+  console.error("RTDB Error:", err);
+  state.rtdbLoaded = true;
+  mergeTickets();
+  render();
+});
+
+// 3. Agents (Firestore) — name, role, avatarUrl (photo) all here
 onSnapshot(collection(db,'agents'), (snap)=>{
   state.agents = snap.docs.map(d=> ({ id:d.id, ...d.data() }));
   state.agentsLoaded = true;
@@ -2860,6 +2985,7 @@ onSnapshot(collection(db,'agents'), (snap)=>{
   document.getElementById('conn-label').textContent = 'offline';
 });
 
+// 4. Custom Types (Firestore)
 onSnapshot(collection(db,'ticketTypes'), (snap)=>{
   state.customTypesData = snap.docs.map(d=> ({ id:d.id, ...d.data() }));
   state.customTypes = state.customTypesData.map(d=> d.name).filter(Boolean);
@@ -2870,18 +2996,6 @@ onSnapshot(collection(db,'ticketTypes'), (snap)=>{
   console.error(err);
   state.customTypesLoaded = true;
   document.getElementById('conn-label').textContent = 'offline';
-});
-
-onSnapshot(collection(db, 'agentPhotos'), (snap)=>{
-  const photos = {};
-  snap.forEach(d=>{ const data = d.data(); if(data.dataUrl) photos[d.id] = data.dataUrl; });
-  state.agentPhotos = photos;
-  state.agentPhotosLoaded = true;
-  render();
-}, (err)=>{
-  console.error(err);
-  state.agentPhotosLoaded = true;
-  toast('Could not load agent photos.', 'error');
 });
 
 render();
